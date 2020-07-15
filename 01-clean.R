@@ -17,6 +17,9 @@ my_timestap <- str_replace(file_name,".+(...................)\\.xlsx","\\1") %>%
 # my_timestap <- janitor::make_clean_names(Sys.Date())
 readxl::excel_sheets(file_name)
 
+retorno_ins <-  read_rds("data/retorno_ins.rds")
+
+
 # ubigeo-diris-district-reunis ---------------------------------------------------
 
 reunis_rute <- "../asis_repositorio/denom_r/data-raw/Poblacion Peru 2020 Dpto Prov Dist Final INEI-actualizado.xlsx"
@@ -88,9 +91,21 @@ hh_raw_data %>%
   naniar::miss_var_summary() %>% 
   avallecam::print_inf()
 
-pp_raw_data %>% 
-  naniar::miss_var_summary() %>% 
-  avallecam::print_inf()
+vv_raw_data <- pp_raw_data %>%
+  # glimpse()
+  select(`_parent_index`,
+          tipo_vivienda,
+         agua,
+         desague,
+         electricidad,
+         nro_dormitorios,
+         nro_convivientes) %>% 
+  group_by(`_parent_index`) %>% 
+  filter(!is.na(nro_convivientes)) %>% 
+  ungroup()
+
+# pp_raw_data %>% glimpse()
+#   select(starts_with("material_"),starts_with("hogar"),starts_with("cocina"))
 
 # hh_raw_data %>% 
 #   count(`_index`) %>% 
@@ -103,6 +118,14 @@ pp_raw_data %>%
 
 uu_raw_data <- full_join(pp_raw_data,hh_raw_data,
                          by=c("_parent_index"="_index")) %>% 
+  select(#`_parent_index`,
+         -tipo_vivienda,
+         -agua,
+         -desague,
+         -electricidad,
+         -nro_dormitorios,
+         -nro_convivientes) %>% 
+  full_join(vv_raw_data) %>% 
   # fix ubigeo-inei
   mutate(peru_dist=as.character(peru_dist)) %>% 
   mutate(peru_dist=case_when(
@@ -154,14 +177,18 @@ uu_raw_data <- full_join(pp_raw_data,hh_raw_data,
   
   #create age categories
   mutate(edad=as.numeric(edad)) %>% 
-  cdcper::cdc_edades_peru(edad)
+  cdcper::cdc_edades_peru(edad) %>% 
+  
+  # resultados laboratorio
+  left_join(retorno_ins)
 
 
 uu_raw_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,tipo_muestra_pcr,
         ig_clasificacion,igg,igm,igg_igm)
 
-uu_raw_data %>% naniar::miss_var_summary() %>% 
+uu_raw_data %>% 
+  naniar::miss_var_summary() %>% 
   avallecam::print_inf()
 
 # uu_raw_data %>% 
@@ -173,6 +200,15 @@ uu_raw_data %>% naniar::miss_var_summary() %>%
 #   mutate(`_submission__id`=as.character(`_submission__id`)) %>% 
 #   count(`_submission__id`,sort = T)
 #   skimr::skim()
+
+# uu_raw_data %>% 
+#   select(convResultado,sintomas_si_no,sintomas) %>% 
+#   naniar::miss_var_summary()
+
+uu_raw_data %>%
+  count(sintomas_si_no,convResultado)
+  # janitor::tabyl(sintomas_si_no,convResultado) %>% 
+  # avallecam::adorn_ame()
 
 # write to data -----------------------------------------------------------
 

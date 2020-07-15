@@ -190,3 +190,46 @@ uu_raw_data_pre %>%
   select(conglomerado,id,id_2,uuid,parent_index,submission_id,
          submission_uuid,numero_vivienda,direccion) %>% 
   filter(conglomerado=="25738") %>% view()
+
+
+# missings ----------------------------------------------------------------
+
+consolidados <- read_rds("data/cdc-consolidados_a_ins.rds") %>% 
+  filter(!is.na(n_final))
+
+consolidados %>% 
+  writexl::write_xlsx("table/00-20200714-consolidados_a_ins.xlsx")
+
+uu_raw_data %>% 
+  filter(magrittr::is_in(dni,consolidados %>% pull(n_final))) %>% 
+  writexl::write_xlsx("table/00-20200714-nominal-en_consolidadoss.xlsx")
+
+uu_raw_data %>% 
+  # filter(!is.na(presente_prueba)) %>% 
+  filter(is.na(resultado_pr)) %>% 
+  filter(magrittr::is_in(dni,consolidados %>% pull(n_final))) %>% 
+  writexl::write_xlsx("table/00-20200714-nominal_sin_resultado_pr-en_consolidadoss.xlsx")
+
+
+# RETORNO ins -------------------------------------------------------------
+
+retorno_ins <- readxl::read_excel("data-raw/retorno_ins/RESULTADOS AL 13.07.20.xlsx") %>% 
+  # glimpse()
+  select(DocIdentidad,nombrePaciente,edad_retorno=edad,SexoPaciente,
+         EstatusResultado,convResultado) %>% 
+  # count(EstatusResultado,convResultado)
+  separate(DocIdentidad,into = c("doc","dni"),remove = F) %>% 
+  filter(EstatusResultado=="Resultado Verificado"| convResultado=="NEGATIVO")
+
+retorno_ins %>% 
+  count(dni,sort = T)
+  # dplyr::filter(num=="sin") %>% 
+  # count(EstatusResultado,convResultado)
+  
+retorno_ins %>% 
+  write_rds("data/retorno_ins.rds")
+  
+
+uu_raw_data_pre %>% 
+  left_join(retorno_ins) %>% 
+  count(convResultado)
