@@ -1,3 +1,7 @@
+#' 
+#' OBJETIVO
+#' - crear diccionario compatible con INS
+
 library(tidyverse)
 library(magrittr)
 dict_name <- "notrack/Encuesta ESPI_fisico.xlsx"

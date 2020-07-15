@@ -1,3 +1,8 @@
+#' 
+#' OBJETIVO
+#' - crear consolidado
+#' write_rds("data/cdc-consolidados_a_ins.rds")
+
 library(tidyverse)
 library(magrittr)
 

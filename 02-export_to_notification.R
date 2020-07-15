@@ -1,4 +1,9 @@
 #' 
+#' OBJETIVOS
+#' - crear formatos de envío de datos a SISCOVID y NETLAB
+#' 
+
+#' 
 #' TAREA:
 #' (X) REMOVER TODAS LAS OBSERVACIONES CON ROWNAME YA ENVIADO!!!
 #' 

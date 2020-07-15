@@ -1,5 +1,7 @@
-#' aim:
-#' crear un diccionario de conglomerado y eess
+#' 
+#' OBJETIVO:
+#' - crear un diccionario de conglomerado y eess
+#' write_rds("data/inei-diccionario_conglomerado.rds")
 
 library(tidyverse)
 

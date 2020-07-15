@@ -1,3 +1,7 @@
+#' 
+#' OBJETIVO
+#' - crear outputs de revisión por control de calidad
+#' - ubicacíon: "table/..."
 
 # packages ----------------------------------------------------------------
 

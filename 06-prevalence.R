@@ -1,3 +1,14 @@
+#'
+#' OBJETIVO:
+#' - crear tablas de prevalencia usando survey design
+#' - temporalmente, creación y grabacion final de base limpia
+#' write_rds("data/uu_clean_data.rds")
+#' 
+#' PENDIENTES:
+#' - revisar eliminación de distritos
+#' - revisar diseño en seteo
+#' - pasar limpieza total a 01-clean.R
+
 library(tidyverse)
 library(survey)
 library(srvyr)
@@ -69,6 +80,15 @@ uu_clean_data <- uu_raw_data %>%
   ))
 
 # uu_clean_data %>% count(totvivsel)
+
+# WRITE clean data --------------------------------------------------------
+
+
+uu_clean_data %>% 
+  write_rds("data/uu_clean_data.rds")
+
+# outcomes! ---------------------------------------------------------------
+
 
 uu_clean_data %>% 
   count(sintomas_cualquier_momento,sintomas_si_no,sintomas_previos)
