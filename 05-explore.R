@@ -2,6 +2,14 @@
 #' OBJETIVO
 #' - crear outputs de revisión por control de calidad
 #' - ubicacíon: "table/..."
+#' # writexl::write_xlsx("table/00-20200713-conglomerado-no_vinculado.xlsx")
+#' writexl::write_xlsx("table/00-20200713-numeracion-viviendas_por_conglomerado.xlsx")
+#' writexl::write_xlsx("table/00-20200713-cantidad-viviendas_por_conglomerado.xlsx")
+#' writexl::write_xlsx("table/00-20200713-registros_por_vivienda-total.xlsx")
+#' writexl::write_xlsx("table/00-20200713-registros_por_vivienda-solo_diferentes.xlsx")
+#' writexl::write_xlsx("table/00-20200714-consolidados_a_ins.xlsx")
+#' writexl::write_xlsx("table/00-20200714-nominal-en_consolidadoss.xlsx")
+#' writexl::write_xlsx("table/00-20200714-nominal_sin_resultado_pr-en_consolidadoss.xlsx")
 
 # packages ----------------------------------------------------------------
 
@@ -196,10 +204,14 @@ uu_raw_data_pre %>%
   filter(conglomerado=="25738") %>% view()
 
 
+# CONSOLIDADOS ------------------------------------------------------------
+
+
 # missings ----------------------------------------------------------------
 
 consolidados <- read_rds("data/cdc-consolidados_a_ins.rds") %>% 
-  filter(!is.na(n_final))
+  filter(!is.na(n_final)) %>% 
+  mutate(dni=n_final)
 
 consolidados %>% 
   writexl::write_xlsx("table/00-20200714-consolidados_a_ins.xlsx")
@@ -215,25 +227,86 @@ uu_raw_data %>%
   writexl::write_xlsx("table/00-20200714-nominal_sin_resultado_pr-en_consolidadoss.xlsx")
 
 
-# RETORNO ins -------------------------------------------------------------
+# ___________ -------------------------------------------------------------
 
-retorno_ins <- readxl::read_excel("data-raw/retorno_ins/RESULTADOS AL 13.07.20.xlsx") %>% 
-  # glimpse()
-  select(DocIdentidad,nombrePaciente,edad_retorno=edad,SexoPaciente,
-         EstatusResultado,convResultado) %>% 
-  # count(EstatusResultado,convResultado)
-  separate(DocIdentidad,into = c("doc","dni"),remove = F) %>% 
-  filter(EstatusResultado=="Resultado Verificado"| convResultado=="NEGATIVO")
+
+# casos lima nòrte --------------------------------------------------------
+
+read_rds("data/uu_raw_data.rds") %>% 
+  janitor::clean_names() %>% 
+  #count(diris)
+  filter(diris=="DIRIS NORTE") %>% 
+  writexl::write_xlsx("table/uu_raw_data-diris_norte.xlsx")
+
+# read_rds("data/uu_clean_data.rds") %>% 
+#   janitor::clean_names() %>% 
+#   #count(diris)
+#   filter(diris=="DIRIS NORTE") %>% 
+#   write_rds("table/uu_clean_data-diris_norte.rds")
+
+
+
+# __________ --------------------------------------------------------------
+
+
+# curce con retorno -------------------------------------------------------
+
+retorno_ins <-  read_rds("data/retorno_ins.rds")
+
+
+# interseccion ------------------------------------------------------------
+
 
 retorno_ins %>% 
-  count(dni,sort = T)
-  # dplyr::filter(num=="sin") %>% 
-  # count(EstatusResultado,convResultado)
-  
-retorno_ins %>% 
-  write_rds("data/retorno_ins.rds")
-  
+  inner_join(consolidados)
 
-uu_raw_data_pre %>% 
-  left_join(retorno_ins) %>% 
-  count(convResultado)
+consolidados %>% 
+  inner_join(retorno_ins)
+
+# exclusion ---------------------------------------------------------------
+
+# PENDIENTE: INTEGRAR POR NOMBRE DE PERSONA o CORREGIR DNI
+retorno_ins %>% 
+  anti_join(consolidados) %>% 
+  writexl::write_xlsx("table/05-exclusion-retorno_ins_si-consolidados_no.xlsx")
+
+consolidados %>% 
+  anti_join(retorno_ins) %>% 
+  writexl::write_xlsx("table/05-exclusion-consolidados_si-retorno_ins_no.xlsx")
+
+
+# diferencia de observaciones ---------------------------------------------
+
+file_name <- avallecam::read_lastfile(path = "data-raw/",pattern = ".xlsx")
+bamba <- avallecam::read_lastfile(path = "data-raw/previas/",pattern = ".xlsx")
+
+pp_raw_data_original <- readxl::read_excel(file_name,sheet = 2) %>% 
+  select(-3) %>% 
+  janitor::clean_names()
+
+pp_raw_data_bamba <- readxl::read_excel(bamba,sheet = 2) %>% 
+  select(-3) %>% 
+  janitor::clean_names()
+
+pp_raw_data_original_sel <- pp_raw_data_original %>% 
+  select(dni,
+         nombres,contains("apellido"),
+         # parent_index,index
+         )
+
+pp_raw_data_bamba_sel <- pp_raw_data_bamba %>% 
+  select(dni=numero_de_documento,
+         nombres,apellido_paterno,apellido_materno,
+         # parent_index,index
+         )
+
+inner_join(pp_raw_data_bamba_sel,pp_raw_data_original_sel)
+inner_join(pp_raw_data_original_sel,pp_raw_data_bamba_sel)
+anti_join(pp_raw_data_bamba_sel,pp_raw_data_original_sel)
+anti_join(pp_raw_data_original_sel,pp_raw_data_bamba_sel)
+
+pp_raw_data_bamba %>% 
+  filter(dni==".")
+# pp_raw_data_bamba %>% 
+#   filter(numero_de_documento==".") %>% 
+#   view()

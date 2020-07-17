@@ -28,3 +28,10 @@ diccionario_conglomerado %>%
   ggplot(aes(x = longitud,y = latitud)) +
   geom_point(size=5,alpha=0.1) +
   coord_fixed()
+
+
+
+# contrastes - exploracion ------------------------------------------------
+
+diccionario_conglomerado %>% 
+  filter(conglomerado=="17940")
