@@ -10,7 +10,7 @@ library(magrittr)
 
 
 path <- "data-raw/muestras/"
-pattern <- ".xlsx"
+pattern <- ".xlsx$"
 file_name <- list.files(path = path,
            pattern = pattern,
            full.names = T) %>%
@@ -60,6 +60,7 @@ consolidados <- file_name %>%
 
 
 consolidados %>% 
+  filter(!is.na(n_final)) %>% 
   # naniar::miss_var_summary()
   write_rds("data/cdc-consolidados_a_ins.rds")
 
@@ -87,8 +88,8 @@ consolidados %>%
 
 consolidados %>% 
   group_by(n_final) %>% 
-  filter(n()>1) %>% 
-  view()
+  filter(n()>1) #%>% 
+  #view()
 
 consolidados %>% 
   group_by(value,
