@@ -426,7 +426,57 @@ uu_clean_data <- uu_raw_data %>% #3117
     sintomas_si_no=="si" | sintomas_previos=="si" ~ "si",
     sintomas_si_no=="no" | sintomas_previos=="no" ~ "no",
     TRUE ~ "missing"
-  ))
+  )) %>% 
+  
+  # creacion de variables y recategorizacion
+  
+  # hacinamiento: redatam
+  mutate(nro_dormitorios = as.numeric(nro_dormitorios),
+         nro_convivientes = as.numeric(nro_convivientes)) %>% 
+  mutate(ind_hacin = (nro_convivientes/nro_dormitorios)) %>% 
+  # mutate(ind_hacin=if_else(condition = ind_hacin==Inf,
+  #                          true = NA_real_,
+  #                          false = ind_hacin)) %>%
+  mutate(hacinamiento=case_when(ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
+                                ind_hacin>=2.5 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
+  mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
+  
+  # pobreza: mef
+  mutate(nbi_haci=case_when(ind_hacin>=0.1 & ind_hacin<=3.4~0,
+                            ind_hacin>=3.5 & ind_hacin<=20 ~1),
+         nbi_electricidad=case_when(electricidad=="si"~0,
+                                    electricidad=="no"~1),
+         nbi_agua=case_when(agua=="cisterna"~1,
+                            agua=="otro"~1,
+                            agua=="pilon_comun"~1,
+                            agua=="pozo_subterraneo"~1,
+                            agua=="red_publica_dentro"~0,
+                            agua=="red_publica_fuera"~1),
+         nbi_desague=case_when(desague=="letrina"~0,
+                               desague=="otro"~1,
+                               desague=="pozo_negro"~0,
+                               desague=="pozo_septico"~0,
+                               desague=="red_publica_dentro"~0,
+                               desague=="red_publica_fuera"~1),
+         nbi_ninos_sin_cole=case_when(!is.na(nivel_academico) & nivel_academico!="sin_nivel" ~0,
+                                      edad>=6 & edad<=12 & nivel_academico!="sin_nivel"~1,
+                                      edad>=6 & edad<=12 & nivel_academico=="sin_nivel"~1)) %>%  
+  mutate(pre_educac=case_when(jefe_si_no=="no" & !is.na(nivel_academico)~0,
+                              jefe_si_no=="si" & nivel_academico=="inicial"~1,
+                              jefe_si_no=="si" & nivel_academico=="primaria_incomp"~1,
+                              jefe_si_no=="si" & nivel_academico=="sin_nivel"~1)) %>%
+  # submission_id es equivalente a parent_index
+  # count(`_submission__id`)
+  # count(`_parent_index`,`_submission__id`) %>% 
+  # count(`_parent_index`,`_submission__id`,sort = T)
+  group_by(`_submission__id`) %>% 
+  mutate(nbi_educacion=sum(pre_educac,na.rm = T)) %>% 
+  #do(mutate(.,nbi_educacion=length(pre_educac[!is.na(pre_educac)]))) %>% 
+  ungroup() %>% 
+  mutate(ind_pobreza=nbi_educacion+nbi_haci+nbi_ninos_sin_cole+nbi_electricidad+nbi_agua+nbi_desague) %>% 
+  mutate(pobreza=case_when(ind_pobreza==0~"No pobre",
+                           ind_pobreza==1~"Pobre",
+                           ind_pobreza>=1~"Pobre extremo"))
 
 # uu_clean_data %>% count(totvivsel)
 
