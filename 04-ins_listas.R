@@ -112,3 +112,15 @@ consolidados %>%
 consolidados %>% 
   select(n_del_tubo) %>% 
   filter(str_length(n_del_tubo)==12)
+
+
+
+# ______________ ----------------------------------------------------------
+
+
+# WILBER digitacion -------------------------------------------------------
+
+readxl::read_excel("data-raw/muestras_prpm/consolidado_pr_pm.xlsx") %>% 
+  janitor::clean_names() %>% 
+  filter(!is.na(dni)) %>% 
+  write_rds("data/cdc-consolidados_pr_pm.rds")
