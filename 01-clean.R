@@ -365,13 +365,20 @@ uu_raw_data <- read_rds("data/uu_raw_data.rds") #3117
 
 # inputs ------------------------------------------------------------------
 
+# _ CONGLOMERADOS -----------------------------------------------------------
+
 diccionario_conglomerado <- read_rds("data/inei-diccionario_conglomerado.rds") %>% 
   group_by(ubigeo,distrito,codccpp_bd,zona1_bd,conglomerado#,manzana,longitud,latitud
   ) %>% 
   summarise(totvivsel=sum(totvivsel)) %>% 
   ungroup() 
 
-diccionario_ponderaciones <- readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19 AJUSTADO-enviado-14-7-20.xlsx") %>% 
+# _ PONDERACIONES -----------------------------------------------------------
+
+
+diccionario_ponderaciones <- 
+  # readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19 AJUSTADO-enviado-14-7-20.xlsx") %>%
+  readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19-enviado-22-7-20.xlsx") %>%
   janitor::clean_names() %>% 
   select(ubigeo,conglomerado=conglomeradofinal,mviv:factorfinal)
 
@@ -498,7 +505,6 @@ uu_clean_data %>%
 
 # outcomes! ---------------------------------------------------------------
 
-
 uu_clean_data %>% 
   count(sintomas_cualquier_momento,sintomas_si_no,sintomas_previos)
 
@@ -507,7 +513,9 @@ uu_clean_data %>%
 
 # explorar ----------------------------------------------------------------
 
-uu_clean_data %>% naniar::miss_var_summary()
+uu_clean_data %>% 
+  naniar::miss_var_summary() %>% 
+  avallecam::print_inf()
 
 
 # _________________ -------------------------------------------------------

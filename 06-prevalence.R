@@ -50,9 +50,9 @@ uu_clean_data %>%
 
 uu_clean_data %>% naniar::miss_var_summary()
 
-uu_clean_data %>%
-  filter(cd_dist=="150102") %>%
-  count(cd_dist,nm_dist,conglomerado,numero_vivienda)
+# uu_clean_data %>%
+#   filter(cd_dist=="150102") %>%
+#   count(cd_dist,nm_dist,conglomerado,numero_vivienda)
 # 
 # temporary_just_1_psu <- uu_clean_data %>% 
 #   count(cd_dist,nm_dist,conglomerado,sort = T) %>% 
@@ -73,10 +73,10 @@ uu_clean_data %>%
 
 uu_clean_data %>% 
   select(cd_dist,nm_dist,conglomerado,numero_vivienda,distrito.y:factorfinal) %>% 
-  filter(cd_dist=="150132") %>%
-  filter(conglomerado=="22483") #%>%
+  # filter(cd_dist=="150132") %>%
+  # filter(conglomerado=="22483") #%>%
   # # count(conglomerado)
-  # filter(is.na(factorfinal))
+  filter(is.na(factorfinal))
 
 # ____________ ------------------------------------------------------------
 
@@ -656,15 +656,43 @@ cdc_srvyr_tibble_03 <- function(data) {
     select(covariate,category,outcome,everything())
 }
 
-cdc_svry_create_table <- function(data) {
+cdc_srvyr_create_table <- function(data,
+                                   estim_digits=3,
+                                   cilow_digits=2,
+                                   ciupp_digits=3) {
   data %>% 
     mutate_if(.predicate = is.numeric,
               .funs = funs("tab"=.*100)) %>% 
-    mutate_at(.vars = vars(proportion_tab,proportion_low_tab,proportion_upp_tab),.funs = format,digits=3) %>%
+    # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
+    mutate_at(.vars = vars(proportion_tab),.funs = format,digits=estim_digits) %>% 
+    mutate_at(.vars = vars(proportion_low_tab),.funs = format,digits=cilow_digits) %>% 
+    mutate_at(.vars = vars(proportion_upp_tab),.funs = format,digits=ciupp_digits) %>% 
     mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
-    mutate(prevalence=str_c(proportion_tab,"%\n(",proportion_low_tab,"-",proportion_upp_tab,")")) %>%
+    mutate(prevalence=str_c(proportion_tab,"%\n(",proportion_low_tab," - ",proportion_upp_tab,")")) %>%
+    mutate(prevalence_tab=str_c(proportion_tab,"% (",proportion_low_tab,"-",proportion_upp_tab,")")) %>%
     mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
     # select(-starts_with("proportion"),-ig_clasificacion)
+}
+
+cdc_srvyr_create_table_02 <- function(data,
+                                      proportion_tab=proportion_tab,
+                                      proportion_low_tab=proportion_low_tab,
+                                      proportion_upp_tab=proportion_upp_tab,
+                                      estim_digits=3,
+                                      cilow_digits=2,
+                                      ciupp_digits=3) {
+  data %>% 
+    mutate_if(.predicate = is.numeric,
+              .funs = funs("tab"=.*100)) %>% 
+    # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
+    mutate_at(.vars = vars({{proportion_tab}}),.funs = format,digits=estim_digits) %>% 
+    mutate_at(.vars = vars({{proportion_low_tab}}),.funs = format,digits=cilow_digits) %>% 
+    mutate_at(.vars = vars({{proportion_upp_tab}}),.funs = format,digits=ciupp_digits) %>% 
+    # mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
+    # mutate(prevalence=str_c(proportion_tab,"%\n(",proportion_low_tab,"-",proportion_upp_tab,")")) %>%
+    mutate(prevalence_tab=str_c({{proportion_tab}},"% (",{{proportion_low_tab}},"-",{{proportion_upp_tab}},")")) #%>%
+    # mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
+  # select(-starts_with("proportion"),-ig_clasificacion)
 }
 
 ggplot_prevalence <- function(data) {
@@ -681,11 +709,12 @@ ggplot_prevalence <- function(data) {
 
 # tables ------------------------------------------------------------------
 
-#' modelo
+#' PENDIENTE
 #' (x) proporcion cruda
 #' (x) ajustado por ponderacion poblacional
 #' ( ) ajustado por test performance -solo en outcomes serologicos-
-#' ( ) retirar cv (diferencias no analizables) pero da certeza de la inferencia
+#' (x) retirar cv (diferencias no analizables) pero da certeza de la inferencia
+#' ( ) crear grafico solo de edades. tabla con valores puntuales generales y sexo
 
 outcome_01 <- out0101 %>% 
   union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
@@ -739,7 +768,11 @@ figura01 <- outcome_01 %>%
                             "IgM+ ó IgG+"="ig_clasificacion",
                             "IgM+ ó IgG+ ó PCR+"="positividad_peru",
   )) 
-figura01 %>% writexl::write_xlsx("table/33-seroprev-figura01.xlsx")
+
+figura01 %>% 
+  cdc_srvyr_create_table(estim_digits = 2) %>% 
+  # select(prevalence_tab)
+  writexl::write_xlsx("table/33-seroprev-figura01.xlsx")
 
 figura01 %>% 
   
@@ -777,7 +810,10 @@ figura02 <- out0104 %>%
                             "IgM+ ó IgG+"="ig_clasificacion",
                             "IgM+ ó IgG+ ó PCR+"="positividad_peru",
                             ))
-figura02 %>% writexl::write_xlsx("table/33-seroprev-figura02.xlsx")
+figura02 %>% 
+  cdc_srvyr_create_table(estim_digits = 2,ciupp_digits = 2) %>% 
+  # select(prevalence_tab)
+  writexl::write_xlsx("table/33-seroprev-figura02.xlsx")
 
 figura02 %>% 
   
@@ -802,6 +838,7 @@ ggsave("figure/33-seroprev-figure02.png",height = 4,width = 6.5,dpi = "retina")
 # __fig03 -----------------------------------------------------------------
 
 library(sf)
+library(ggspatial)
 shapes_diris <- read_rds("data/per4-shp_distritos_janitor_diris.rds") %>% 
   st_as_sf(crs = 4610, agr = "constant") %>% 
   count(diris) 
@@ -825,32 +862,48 @@ figura03 <- out0106 %>%
                             "IgM+ ó IgG+"="ig_clasificacion",
                             "IgM+ ó IgG+ ó PCR+"="positividad_peru",
   )) %>% 
-  cdc_svry_create_table()
+  cdc_srvyr_create_table()
 
+# figura03 %>% select(-geometry) %>% select(prevalence,prevalence_tab)
 figura03 %>% select(-geometry) %>% writexl::write_xlsx("table/33-seroprev-figura03.xlsx")
 
 figura03 %>% 
-  # mutate(prevalence=str_c(category,"\n",prevalence)) %>% 
+  mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
+  mutate(prevalence=str_c(category,"\n",prevalence)) %>%
+  # select(proportion)
   
   filter(outcome!="IgM+") %>%
   filter(outcome!="IgG+") %>%
   
   st_as_sf(crs = 4610, agr = "constant") %>% 
   ggplot() +
-  geom_sf(aes(fill=proportion)) +
+  geom_sf(aes(fill=proportion),colour = NA) +
+  coord_sf() +
+  # coord_sf(datum = NA) +
   facet_grid(~outcome) +
   # scale_fill_viridis_c()
   colorspace::scale_fill_continuous_sequential("Reds 3",
+                                               limits = c(0.16,0.30),
+                                               # rev = F,
                                                labels=scales::percent_format(accuracy = 1)) +
   colorspace::scale_color_continuous_sequential(palette = "Grays",
-                                                rev = F,guide = F) +
-  ggsflabel::geom_sf_label(aes(label=prevalence,
-                               fill=proportion,
-                               color=proportion),size=3) +
+                                                rev = F,
+                                                guide = F) +
+  ggsflabel::geom_sf_label_repel(aes(label=prevalence,
+                                     fill=proportion,
+                                     color=proportion),
+                                 size=3,
+                                 fontface = "bold") +
   # scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
   labs(title = "Prevalencia de SARS-CoV-2 por Prueba y DIRIS",
        subtitle = "En Lima Metropolitana y Callao, Julio 2020",
        y = "Latitud",x = "Longitud",
        fill = "Prevalencia"#,size = "CV%"
-  )
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.5) +
+  annotation_north_arrow(location = "bl", 
+                         which_north = "true",
+                         pad_x = unit(0.5, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_fancy_orienteering)
 ggsave("figure/33-seroprev-figure03.png",height = 9,width = 9,dpi = "retina")
