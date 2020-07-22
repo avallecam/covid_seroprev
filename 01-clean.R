@@ -34,7 +34,7 @@ diris_diccionario <- readxl::read_excel(reunis_rute,sheet = 4,skip = 6) %>%
 ubigeo_diccionario <- 
   read_rds("../asis_repositorio/shape_r/data/per4-shp_distritos_janitor.rds") %>% 
   as_tibble() %>% 
-  select(starts_with("cd_"),starts_with("nm_"),-ends_with("_t")) %>% 
+  select(starts_with("cd_"),starts_with("nm_"),-ends_with("_t"),geometry) %>% 
   # crear columna de union a kobo
   mutate(peru_dist=cd_dist) %>% 
   # identificar pertenencia a diris
@@ -63,6 +63,10 @@ ubigeo_diccionario %>%
   filter(nm_prov=="lima") %>%
   # filter(nm_prov=="callao") %>% 
   avallecam::print_inf()
+
+ubigeo_diccionario %>% 
+  filter(nm_prov=="lima"|nm_prov=="callao") %>% 
+  write_rds("data/per4-shp_distritos_janitor_diris.rds")
 
 ubigeo_diccionario %>% 
   count(diris,ipress,ipress_name)
@@ -180,6 +184,12 @@ inner_join(hh_raw_data, #813
 
 # union all ---------------------------------------------------------------
 
+#' sujeto
+#' vivienda
+#' vivienda dado por jefe de hogar
+#' diccionario de ubigeo
+#' retorno ins resultado pm
+
 uu_raw_data <- left_join(pp_raw_data, #3117
                          hh_raw_data, #813
                          by=c("_parent_index"="_index")) %>% #3117 -> HECHO: ver si personas = 0 o son duplicados
@@ -204,7 +214,7 @@ uu_raw_data <- left_join(pp_raw_data, #3117
     str_length(peru_dist)==5~str_replace(peru_dist,"(.+)","0\\1"),
     TRUE~peru_dist
   )) %>% 
-  left_join(ubigeo_diccionario) %>% #conserva observaciones
+  left_join(ubigeo_diccionario %>% select(-geometry)) %>% #conserva observaciones
   select(-peru_depa,-peru_prov) %>% 
   
   mutate(conglomerado=str_replace_all(conglomerado,"\n","")) %>% 
