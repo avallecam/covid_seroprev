@@ -5,9 +5,19 @@
 #' write_rds("data/uu_clean_data.rds")
 #' 
 #' PENDIENTES:
-#' - revisar eliminación de distritos
-#' - revisar diseño en seteo
-#' - pasar limpieza total a 01-clean.R
+#' (x) revisar eliminación de distritos
+#' (x) revisar diseño en seteo
+#' (x) pasar limpieza total a 01-clean.R
+#' 
+#' PENDIENTE
+#' (x) proporcion cruda
+#' (x) ajustado por ponderacion poblacional
+#' (x) retirar cv (diferencias no analizables) pero da certeza de la inferencia
+#' (-) crear grafico solo de edades. tabla con valores puntuales generales y sexo
+#' (x) mapa con dos capas de label diris
+#' ( ) ajustado por test performance: (sens 0.9694 | spec 0.9574)
+#' ( ) reproduce gelman adjustment approach!
+
 
 library(tidyverse)
 library(survey)
@@ -709,12 +719,6 @@ ggplot_prevalence <- function(data) {
 
 # tables ------------------------------------------------------------------
 
-#' PENDIENTE
-#' (x) proporcion cruda
-#' (x) ajustado por ponderacion poblacional
-#' ( ) ajustado por test performance -solo en outcomes serologicos-
-#' (x) retirar cv (diferencias no analizables) pero da certeza de la inferencia
-#' ( ) crear grafico solo de edades. tabla con valores puntuales generales y sexo
 
 outcome_01 <- out0101 %>% 
   union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
@@ -768,6 +772,15 @@ figura01 <- outcome_01 %>%
                             "IgM+ ó IgG+"="ig_clasificacion",
                             "IgM+ ó IgG+ ó PCR+"="positividad_peru",
   )) 
+
+# figura01 %>% 
+#   slice(1) %>% 
+#   select(1:4,n:t) %>% 
+#   mutate(fix=pmap(.l = select(.,n,t),
+#                   .f = seroprevalence_posterior(positive_number_test = n,
+#                                                  total_number_test = t,
+#                                                  sensibility = 0.9694,
+#                                                  specificity = 0.9574)))
 
 figura01 %>% 
   cdc_srvyr_create_table(estim_digits = 2) %>% 
@@ -862,18 +875,20 @@ figura03 <- out0106 %>%
                             "IgM+ ó IgG+"="ig_clasificacion",
                             "IgM+ ó IgG+ ó PCR+"="positividad_peru",
   )) %>% 
-  cdc_srvyr_create_table()
+  cdc_srvyr_create_table() %>% 
+  mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
+  mutate(prevalence_map=str_c(category,"\n",prevalence))
 
 # figura03 %>% select(-geometry) %>% select(prevalence,prevalence_tab)
 figura03 %>% select(-geometry) %>% writexl::write_xlsx("table/33-seroprev-figura03.xlsx")
 
-figura03 %>% 
-  mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
-  mutate(prevalence=str_c(category,"\n",prevalence)) %>%
+figure_03_map <- figura03 %>%
   # select(proportion)
   
   filter(outcome!="IgM+") %>%
-  filter(outcome!="IgG+") %>%
+  filter(outcome!="IgG+")
+
+figure_03_map %>%
   
   st_as_sf(crs = 4610, agr = "constant") %>% 
   ggplot() +
@@ -883,15 +898,34 @@ figura03 %>%
   facet_grid(~outcome) +
   # scale_fill_viridis_c()
   colorspace::scale_fill_continuous_sequential("Reds 3",
-                                               limits = c(0.16,0.30),
+                                               limits = c(0.18,0.30),
                                                # rev = F,
                                                labels=scales::percent_format(accuracy = 1)) +
-  colorspace::scale_color_continuous_sequential(palette = "Grays",
-                                                rev = F,
-                                                guide = F) +
-  ggsflabel::geom_sf_label_repel(aes(label=prevalence,
-                                     fill=proportion,
-                                     color=proportion),
+  # colorspace::scale_color_continuous_sequential(palette = "Grays",
+  #                                               rev = F,
+  #                                               guide = F) +
+  # ggsflabel::geom_sf_label_repel(aes(label=prevalence_map,
+  #                                    fill=proportion,
+  #                                    color=proportion),
+  #                                size=3,
+  #                                fontface = "bold") +
+  ggsflabel::geom_sf_label(data = figure_03_map %>% 
+                                   filter(category=="CALLAO"|
+                                            category=="LIMA NORTE" & 
+                                            outcome=="IgM+ ó IgG+ ó PCR+"),
+                                 aes(label=prevalence_map,
+                                     fill=proportion),
+                                 color="white",
+                                 size=3,
+                                 fontface = "bold") +
+  ggsflabel::geom_sf_label(data = figure_03_map %>% 
+                                   filter(!(category=="CALLAO"|
+                                            category=="LIMA NORTE" & 
+                                            outcome=="IgM+ ó IgG+ ó PCR+")),
+                                 aes(label=prevalence_map,
+                                     # color=proportion,
+                                     fill=proportion),
+                                 color="black",
                                  size=3,
                                  fontface = "bold") +
   # scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
@@ -906,4 +940,4 @@ figura03 %>%
                          pad_x = unit(0.5, "in"),
                          pad_y = unit(0.5, "in"),
                          style = north_arrow_fancy_orienteering)
-ggsave("figure/33-seroprev-figure03.png",height = 9,width = 9,dpi = "retina")
+ggsave("figure/33-seroprev-figure03.png",height = 9,width = 10,dpi = "retina")
