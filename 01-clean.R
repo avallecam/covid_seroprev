@@ -84,7 +84,19 @@ hh_raw_data %>% glimpse()
 # csv subject -------------------------------------------------------------
 
 pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>% 
-  select(-3)
+  select(-3) %>% 
+  mutate(apellido_paterno=str_replace_all(apellido_paterno," ,",""),
+         apellido_materno=str_replace_all(apellido_materno," ,",""),
+         nombres=str_replace_all(nombres," ,",""),
+         apellido_paterno=str_replace_all(apellido_paterno,",",""),
+         apellido_materno=str_replace_all(apellido_materno,",",""),
+         nombres=str_replace_all(nombres,",",""),
+         apellido_paterno=if_else(is.na(apellido_paterno),"",apellido_paterno),
+         apellido_materno=if_else(is.na(apellido_materno),"",apellido_materno),
+         nombres=if_else(is.na(nombres),"",nombres)
+         ) %>% 
+  mutate(nombre_completo=str_c(apellido_paterno," ",apellido_materno,", ",nombres),
+         nombre_completo=str_to_upper(nombre_completo))
 
 pp_raw_data %>% 
   # colnames()
@@ -92,6 +104,10 @@ pp_raw_data %>%
 
 pp_raw_data %>% glimpse()
 
+# pp_raw_data %>% 
+#   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,tipo_muestra_pcr) %>%
+#   filter(str_detect(nombre_completo,"______")) %>%
+#   avallecam::print_inf()
 
 # missings ----------------------------------------------------------------
 
@@ -190,9 +206,9 @@ inner_join(hh_raw_data, #813
 #' diccionario de ubigeo
 #' retorno ins resultado pm
 
-uu_raw_data <- left_join(pp_raw_data, #3117
-                         hh_raw_data, #813
-                         by=c("_parent_index"="_index")) %>% #3117 -> HECHO: ver si personas = 0 o son duplicados
+uu_raw_data_prelab <- left_join(pp_raw_data, #3189
+                         hh_raw_data, #815
+                         by=c("_parent_index"="_index")) %>% #3203 -> HECHO: ver si personas = 0 o son duplicados
   # naniar::vis_miss()
   select(#`_parent_index`,
          -tipo_vivienda,
@@ -259,13 +275,112 @@ uu_raw_data <- left_join(pp_raw_data, #3117
   
   #create age categories
   mutate(edad=as.numeric(edad)) %>% 
-  cdcper::cdc_edades_peru(edad) %>% 
+  cdcper::cdc_edades_peru(edad)
+
+# ________ ----------------------------------------------------------------
+
+
+# UNION: LAB RESULTS -------------------------------------------------------
+
+uu_raw_data <- uu_raw_data_prelab %>% 
   
   # resultados laboratorio
-  left_join(retorno_ins) #conserva observaciones
+  left_join(
+    retorno_ins %>% 
+      rename_all(.funs=str_replace,"(.+)","left_01_\\1") %>%
+      rename(dni=left_01_dni,
+             convResultado_01=left_01_convResultado) %>% 
+      mutate(left_01=TRUE)
+    ) %>% #conserva observaciones
+  # count(left_01)
+  left_join(
+    retorno_ins %>% #select(-celular1) %>%
+      rename_all(.funs=str_replace,"(.+)","left_02_\\1") %>%
+      rename(nombre_completo=left_02_nombrePaciente,
+             convResultado_02=left_02_convResultado) %>%
+      mutate(left_02=TRUE)
+  ) %>%
+  # count(left_01,left_02) #2186-(1098+932+90)
+  # select(dni,nombre_completo,convResultado_01,convResultado_02,left_01,left_02) %>%
+  mutate(convResultado=coalesce(convResultado_01,convResultado_02),
+         EstatusResultado=coalesce(left_01_EstatusResultado,left_02_EstatusResultado),
+         CodigoOrden=coalesce(left_01_CodigoOrden,left_02_CodigoOrden),
+         fechaNacimiento=coalesce(left_01_fechaNacimiento,left_02_fechaNacimiento),
+         DocIdentidad=coalesce(left_01_DocIdentidad,left_02_DocIdentidad),
+         left_lab=coalesce(left_01,left_02)) %>%
+  select(-convResultado_01,-convResultado_02,
+         -left_01_EstatusResultado,-left_02_EstatusResultado,
+         -left_01_CodigoOrden,-left_02_CodigoOrden,
+         -left_01_fechaNacimiento,-left_02_fechaNacimiento,
+         -left_01_DocIdentidad,-left_02_DocIdentidad,
+         -left_01,-left_02,
+         -left_01_nombrePaciente,-left_02_dni)
+  # count(convResultado_01,convResultado_02,convResultado,left_01,left_02,left_lab) #2186-(1097+933+89) = 67
+
+# __ reporte --------------------------------------------------------------
+
+uu_raw_data %>% 
+  count(tipo_muestra_pcr,left_lab)
+
+# pendientes, rechazoz e inconsistencias
+uu_raw_data %>% 
+  count(tipo_muestra_pcr,EstatusResultado)
+
+# pendiente
+uu_raw_data %>% 
+  filter(tipo_muestra_pcr=="nasal") %>% 
+  filter(is.na(EstatusResultado)) %>%
+  writexl::write_xlsx("table/04-20200723-pendiente-in_kobo-presente_prueba-pendiente_retorno.xlsx")
+
+# rechazo
+uu_raw_data %>% 
+  filter(tipo_muestra_pcr=="nasal") %>% 
+  filter(EstatusResultado=="Rechazo Rom") %>%
+  writexl::write_xlsx("table/04-20200723-rechazos-in_kobo-presente_prueba-rechazo_rom.xlsx")
+
+# inconsistente: con resultado pero si reporte de envio de muestra
+uu_raw_data %>% 
+  filter(tipo_muestra_pcr!="nasal"|is.na(tipo_muestra_pcr)) %>% 
+  # count(tipo_muestra_pcr,EstatusResultado)
+  filter(EstatusResultado=="Resultado Verificado") %>% 
+  writexl::write_xlsx("table/04-20200723-inconsistente-in_kobo-sin_prueba-con_resultado.xlsx")
+
+#ausentes
+retorno_ins %>%
+  anti_join(uu_raw_data) %>% 
+  rename(nombre_completo=nombrePaciente,
+         dni_2=dni) %>% 
+  anti_join(uu_raw_data) %>% 
+  # avallecam::print_inf()
+  writexl::write_xlsx("table/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
+
+
+# uu_raw_data %>% #glimpse()
+#   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,
+#          sexo,edad,`_submission__id`,left_lab,convResultado) %>% 
+#   filter(str_detect(nombre_completo,"______")) %>%
+#   avallecam::print_inf()
+
+  
+uu_raw_data %>% 
+  janitor::tabyl(convResultado) %>% 
+  janitor::adorn_pct_formatting()
+
+uu_raw_data %>% 
+  janitor::tabyl(EstatusResultado,convResultado)
+
+# __________ --------------------------------------------------------------
+
 
 # PRUEBAS POST ------------------------------------------------------------
 
+# uu_raw_data %>% glimpse()  
+
+# __ identificador por persona -----------------------------------------------
+
+uu_raw_data %>% 
+  select(dni,nombre_completo) %>% 
+  filter(is.na(dni))
 
 # [*] conteo ESP vs OBS --------------------------------------------
 
@@ -347,6 +462,10 @@ uu_raw_data %>%
   # janitor::tabyl(sintomas_si_no,convResultado) %>% 
   # avallecam::adorn_ame()
 
+uu_clean_data %>% 
+  select(dni,nombre_completo,left_ins_EstatusResultado) %>% 
+  naniar::miss_var_summary()
+
 # RAW: write to data -----------------------------------------------------------
 
 uu_raw_data %>% 
@@ -388,15 +507,59 @@ diccionario_ponderaciones <-
 # diccionario_ponderaciones %>% 
 #   count(ubigeo,factorfinal)
 
-# revisar categorizaciones ------------------------------------------------
+# ___________ -------------------------------------------------------------
+
+
+# REVISION: missings ------------------------------------------------------
+
+
+# __ conglome | viviendas | sujetos ------------------------------------------
+
+distrito_conglomerado_nro_viviendas <- uu_raw_data %>% 
+  count(cd_dist,conglomerado,numero_vivienda) %>% 
+  count(cd_dist,conglomerado)
+
+# conglomerados no muestreados
+diccionario_conglomerado %>% 
+  filter(!is_in(conglomerado,distrito_conglomerado_nro_viviendas$conglomerado))
+
+# conglomerados no presentes en la ponderacion
+diccionario_ponderaciones %>% 
+  filter(!is_in(conglomerado,distrito_conglomerado_nro_viviendas$conglomerado))
+
+uu_raw_data %>% 
+  filter(cd_dist=="150102") %>% 
+  count(nm_dist,cd_dist,conglomerado)
+
+diccionario_ponderaciones %>% 
+  filter(ubigeo=="150102")
+
+hh_raw_data %>% 
+  filter(peru_dist=="150102") %>% 
+  count(conglomerado,numero_vivienda,participante,`_index`,agregar)
+
+# pp_raw_data %>% 
+#   filter(is_in(`_parent_index`,c(118,117))) %>% 
+#   dim()
+
+
+# __ prueba rapida -------------------------------------------------------
+
+# ___ categorizaciones ------------------------------------------------
 
 uu_raw_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,tipo_muestra_pcr,
         ig_clasificacion,igg,igm,igg_igm)
 
 uu_raw_data %>% 
-  count(cd_dist,conglomerado,numero_vivienda) %>% 
-  count(cd_dist,conglomerado)
+  filter(ig_clasificacion=="missing") %>% 
+  writexl::write_xlsx("table/04-20200723-in_kobo-presente_prueba-sin_resultado_pr.xlsx")
+
+# __________ --------------------------------------------------------------
+
+
+# CREAR: base --------------------------------------------------------------
+
 
 uu_clean_data <- uu_raw_data %>% #3117 
   
@@ -497,7 +660,7 @@ uu_clean_data <- uu_raw_data %>% #3117
 
 # uu_clean_data %>% count(totvivsel)
 
-# WRITE clean data --------------------------------------------------------
+# _ WRITE clean data --------------------------------------------------------
 
 
 uu_clean_data %>% 
@@ -509,7 +672,7 @@ uu_clean_data %>%
   count(sintomas_cualquier_momento,sintomas_si_no,sintomas_previos)
 
 uu_clean_data %>% 
-  count(resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
+  count(presente_prueba,resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
 
 # explorar ----------------------------------------------------------------
 
