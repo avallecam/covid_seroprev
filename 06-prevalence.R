@@ -769,8 +769,8 @@ figura01 <- outcome_01 %>%
                              "Masculino"="masculino")) %>% 
   mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
   mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ ó IgG+"="ig_clasificacion",
-                            "IgM+ ó IgG+ ó PCR+"="positividad_peru",
+                            "IgM+ o IgG+"="ig_clasificacion",
+                            "IgM+ o IgG+ o PCR+"="positividad_peru",
   )) 
 
 # figura01 %>% 
@@ -820,8 +820,8 @@ figura02 <- out0104 %>%
               cdc_srvyr_tibble_03()) %>% 
   mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
   mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ ó IgG+"="ig_clasificacion",
-                            "IgM+ ó IgG+ ó PCR+"="positividad_peru",
+                            "IgM+ o IgG+"="ig_clasificacion",
+                            "IgM+ o IgG+ o PCR+"="positividad_peru",
                             ))
 figura02 %>% 
   cdc_srvyr_create_table(estim_digits = 2,ciupp_digits = 2) %>% 
@@ -872,8 +872,8 @@ figura03 <- out0106 %>%
   left_join(shapes_diris %>% select(-n,category=diris)) %>% 
   mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
   mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ ó IgG+"="ig_clasificacion",
-                            "IgM+ ó IgG+ ó PCR+"="positividad_peru",
+                            "IgM+ o IgG+"="ig_clasificacion",
+                            "IgM+ o IgG+ o PCR+"="positividad_peru",
   )) %>% 
   cdc_srvyr_create_table() %>% 
   mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
@@ -886,7 +886,12 @@ figure_03_map <- figura03 %>%
   # select(proportion)
   
   filter(outcome!="IgM+") %>%
-  filter(outcome!="IgG+")
+  filter(outcome!="IgG+") %>% 
+  mutate(outcome=case_when(
+    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
+    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+"))
+
+figure_03_map %>% count(outcome)
 
 figure_03_map %>%
   
@@ -912,7 +917,7 @@ figure_03_map %>%
   ggsflabel::geom_sf_label(data = figure_03_map %>% 
                                    filter(category=="CALLAO"|
                                             category=="LIMA NORTE" & 
-                                            outcome=="IgM+ ó IgG+ ó PCR+"),
+                                            outcome=="Prueba Rápida (IgM+ o IgG+) o PCR+"),
                                  aes(label=prevalence_map,
                                      fill=proportion),
                                  color="white",
@@ -921,7 +926,7 @@ figure_03_map %>%
   ggsflabel::geom_sf_label(data = figure_03_map %>% 
                                    filter(!(category=="CALLAO"|
                                             category=="LIMA NORTE" & 
-                                            outcome=="IgM+ ó IgG+ ó PCR+")),
+                                            outcome=="Prueba Rápida (IgM+ o IgG+) o PCR+")),
                                  aes(label=prevalence_map,
                                      # color=proportion,
                                      fill=proportion),
