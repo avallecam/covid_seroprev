@@ -123,14 +123,17 @@ hh_raw_data %>%
 
 # __ evaluacion de criterio para retirar replcia a nivel de jefe d --------
 
+issue <- "624"
 
-# hh_raw_data %>% 
-#   filter(`_index`=="637") %>% 
+# hh_raw_data %>%
+#   filter(`_index`==issue) %>%
 #   glimpse()
-# pp_raw_data %>% 
-#   filter(`_parent_index`=="637") %>% 
-#   filter(jefe_si_no=="si") %>% 
+# pp_raw_data %>%
+#   filter(`_parent_index`==issue) %>%
+#   filter(jefe_si_no=="si") %>%
 #   glimpse()
+
+issue_decide <- "2425"
 
 # __ creación ----------------------------------------------------------------
 
@@ -139,7 +142,7 @@ vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar dife
   # glimpse()
   # OJO: retiramos duplicado en jefe de vivienda
   # conservamos según criterio de edad y nivel educativo
-  filter(!(`_parent_index`=="637" & `_index`=="2437")) %>% 
+  filter(!(`_parent_index`==issue & `_index`==issue_decide)) %>% 
   select(`_parent_index`,numero_hogar,
           tipo_vivienda,
          agua,
@@ -153,12 +156,15 @@ vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar dife
   distinct()
 
 # ver duplicados - NO
+# corregir en issue e issue_decide
 vv_raw_data %>% 
   group_by(`_parent_index`,numero_hogar) %>% 
   filter(n()>1) %>% 
   avallecam::print_inf()
 # para recuperar valores perdidos por nro docrmitorios y nro convivientes
 # colocar personas entrevistadas por vivienda
+
+vv_raw_data %>% dim()
 
 # pp_raw_data %>% glimpse()
 #   select(starts_with("material_"),starts_with("hogar"),starts_with("cocina"))
@@ -179,24 +185,42 @@ vv_raw_data %>%
 #   count(`_parent_index`) %>% 
 #   avallecam::print_inf()
 
+# viviendas sin información de participantes
 anti_join(hh_raw_data, #813
           pp_raw_data, #3117
           by=c("_index"="_parent_index")) %>% 
-  select(-peru_depa,-peru_prov,-(direccion:longitud),
-         -(id:`_uuid`),-`_validation_status`) %>% 
-  arrange(conglomerado) %>% 
-  avallecam::print_inf()
+  dim()
+  # select(-peru_depa,-peru_prov,-(direccion:longitud),
+  #        -(id:`_uuid`),-`_validation_status`) %>% 
+  # arrange(conglomerado) %>% 
+  # avallecam::print_inf()
+anti_join(hh_raw_data, #813
+          pp_raw_data, #3117
+          by=c("_index"="_parent_index")) %>% 
+  left_join(diccionario_conglomerado) %>% 
+  # glimpse()
+  writexl::write_xlsx("table/05-20200724-viviendas_sin_participante.xlsx")
+
 
 # hh_raw_data %>% select(id) %>% naniar::miss_var_summary()
 
+# sujetos con información de vivienda
 inner_join(hh_raw_data, #813
           pp_raw_data, #3117
           by=c("_index"="_parent_index")) %>% 
+  dim()
   # filter(conglomerado=="4724602") %>% 
-  filter(conglomerado=="17940") %>%
-  select(-peru_depa,-peru_prov,-(direccion:longitud),
-         -(id:`_uuid`),-`_validation_status`) %>% 
-  count(conglomerado,numero_vivienda)
+  # filter(conglomerado=="17940") %>%
+  # select(-peru_depa,-peru_prov,-(direccion:longitud),
+  #        -(id:`_uuid`),-`_validation_status`) %>% 
+  # count(conglomerado,numero_vivienda)
+
+anti_join(hh_raw_data, #813
+          vv_raw_data, #756
+          by=c("_index"="_parent_index")) %>% 
+  avallecam::print_inf()
+
+
 
 # union all ---------------------------------------------------------------
 
@@ -282,6 +306,8 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3189
 
 # UNION: LAB RESULTS -------------------------------------------------------
 
+#' grecia pimentel es negativa
+
 uu_raw_data <- uu_raw_data_prelab %>% 
   
   # resultados laboratorio
@@ -319,12 +345,17 @@ uu_raw_data <- uu_raw_data_prelab %>%
 
 # __ reporte --------------------------------------------------------------
 
+hh_raw_data %>% dim()
+pp_raw_data %>% dim()
+vv_raw_data %>% dim()
+uu_raw_data %>% dim()
+
 uu_raw_data %>% 
   count(tipo_muestra_pcr,left_lab)
 
 # pendientes, rechazoz e inconsistencias
 uu_raw_data %>% 
-  count(tipo_muestra_pcr,EstatusResultado)
+  count(tipo_muestra_pcr,ig_clasificacion,EstatusResultado)
 
 # pendiente
 uu_raw_data %>% 
@@ -354,6 +385,9 @@ retorno_ins %>%
   # avallecam::print_inf()
   writexl::write_xlsx("table/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
 
+uu_raw_data %>% 
+  select(dni,nombre_completo,EstatusResultado) %>% 
+  filter(str_detect(nombre_completo,"PRINCI"))
 
 # uu_raw_data %>% #glimpse()
 #   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,
@@ -379,8 +413,16 @@ uu_raw_data %>%
 # __ identificador por persona -----------------------------------------------
 
 uu_raw_data %>% 
-  select(dni,nombre_completo) %>% 
+  select(dni,nombre_completo,`_index`) %>% 
   filter(is.na(dni))
+
+pp_raw_data %>% 
+  select(nombres,apellido_paterno,apellido_materno,`_index`,`_parent_index`) %>% 
+  filter(`_index`==1467)
+
+hh_raw_data %>% 
+  select(`_index`,conglomerado,numero_vivienda) %>% 
+  filter(`_index`==372)
 
 # [*] conteo ESP vs OBS --------------------------------------------
 
@@ -396,8 +438,12 @@ uu_raw_data %>%
   group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,participante) %>% 
   summarise(n_registros=n()) %>% 
   ungroup() %>% 
-  mutate(diferencia_E_O=n_registros-as.integer(participante)) %>% 
+  mutate(participante=as.integer(participante),
+         diferencia_E_O=n_registros-as.integer(participante)) %>% 
+  # filter(n_registros==0)
+  # summarise_if(.predicate = is.integer,.funs = sum,na.rm=T)
   # # left_join(vv_raw_data)
+  # filter(diferencia_E_O>0) %>%
   # filter(diferencia_E_O<0) %>% 
   # arrange(diferencia_E_O) %>% 
   # avallecam::print_inf()
@@ -462,9 +508,9 @@ uu_raw_data %>%
   # janitor::tabyl(sintomas_si_no,convResultado) %>% 
   # avallecam::adorn_ame()
 
-uu_clean_data %>% 
-  select(dni,nombre_completo,left_ins_EstatusResultado) %>% 
-  naniar::miss_var_summary()
+# uu_clean_data %>% 
+#   select(dni,nombre_completo,left_ins_EstatusResultado) %>% 
+#   naniar::miss_var_summary()
 
 # RAW: write to data -----------------------------------------------------------
 
@@ -552,8 +598,9 @@ uu_raw_data %>%
         ig_clasificacion,igg,igm,igg_igm)
 
 uu_raw_data %>% 
+  filter(presente_prueba=="si") %>% 
   filter(ig_clasificacion=="missing") %>% 
-  writexl::write_xlsx("table/04-20200723-in_kobo-presente_prueba-sin_resultado_pr.xlsx")
+  writexl::write_xlsx("table/04-20200723-pr_pendiente-in_kobo-presente_prueba-sin_resultado_pr.xlsx")
 
 # __________ --------------------------------------------------------------
 
@@ -566,7 +613,7 @@ uu_clean_data <- uu_raw_data %>% #3117
   # justificación: sin ningún resultado de prueba no hay outcome
   # va al flujograma de numero de participantes
   # se van 17 observaciones
-  filter(presente_prueba=="si") %>% #3100
+  filter(presente_prueba=="si") %>% # EXCLUSION!!!!
   
   left_join(diccionario_conglomerado,by = c("conglomerado","cd_dist"="ubigeo")) %>% 
   
@@ -581,7 +628,7 @@ uu_clean_data <- uu_raw_data %>% #3117
   # PENDIENTE: VERIFICAR SI ES UN MISSING NO RECUPERABLE
   # justificación: estuvo en prueba pero no se colectó ningún resultado
   # se va 1
-  filter(ig_clasificacion!="missing") %>% #3099
+  filter(ig_clasificacion!="missing") %>% # EXCLUSION!!!!
   
   mutate(ig_clasificacion=as.factor(ig_clasificacion),
          diris=as.factor(diris),

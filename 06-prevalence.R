@@ -119,6 +119,8 @@ uu_clean_data %>%
 # tratamiento de stratos con un solo conglomerado
 options(survey.lonely.psu = "certainty")
 
+uu_clean_data %>% count(CONGLOMERADO,VIVIENDA)
+
 # diseño muestral de la encuesta ---------------------------------
 
 design <- uu_clean_data %>% 
