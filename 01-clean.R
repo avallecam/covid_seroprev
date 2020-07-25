@@ -23,6 +23,44 @@ readxl::excel_sheets(file_name)
 
 retorno_ins <-  read_rds("data/retorno_ins.rds")
 
+# inputs ------------------------------------------------------------------
+
+# _ CONGLOMERADOS -----------------------------------------------------------
+
+diccionario_conglomerado <- read_rds("data/inei-diccionario_conglomerado.rds") %>% 
+  group_by(ubigeo,distrito,codccpp_bd,zona1_bd,conglomerado#,manzana,longitud,latitud
+  ) %>% 
+  summarise(totvivsel=sum(totvivsel)) %>% 
+  ungroup() 
+
+diccionario_conglomerado %>% 
+  filter(distrito=="ANCON")
+
+# _ PONDERACIONES -----------------------------------------------------------
+
+
+diccionario_ponderaciones <- 
+  # readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19 AJUSTADO-enviado-14-7-20.xlsx") %>%
+  # readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19-enviado-22-7-20.xlsx") %>%
+  readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19-enviado-25-7-20.xlsx") %>% 
+  janitor::clean_names() %>% 
+  select(ubigeo,conglomerado=conglomeradofinal,mviv:factorfinal)
+
+diccionario_ponderaciones %>% 
+  filter(conglomerado=="22970")
+
+diccionario_ponderaciones %>% 
+  filter(ubigeo=="150102")
+
+# diccionario_ponderaciones %>% 
+#   count(ubigeo)
+# 
+# diccionario_ponderaciones %>% 
+#   count(ubigeo,factorfinal)
+
+# ___________ -------------------------------------------------------------
+
+
 
 # ubigeo-diris-district-reunis ---------------------------------------------------
 
@@ -81,6 +119,41 @@ hh_raw_data %>%
 
 hh_raw_data %>% glimpse()
 
+
+# xlsx recovered ----------------------------------------------------------
+
+#need to add
+recovered_observations <- 
+  readxl::read_excel("table/05-ausentes-en_consolidado-con_conglomerado_recuperado-n45.xlsx") %>% 
+  select(diris_2,codigo_del_tubo,conglomerado,
+         numero_vivienda,accion_pendiente,vivienda_estatus,
+         consentimiento,numero_dni,
+         nombres_y_apellidos_del_participante,everything()) %>% 
+  # glimpse()
+  mutate(conglomerado=str_replace(conglomerado,"'","")) %>% 
+  filter(accion_pendiente!="digitado") %>% 
+  filter(accion_pendiente!="ya_en_base") %>% 
+  select(conglomerado,numero_vivienda,numero_dni,
+         #nombres_y_apellidos_del_participante,
+         everything()) %>% 
+  # count(accion_pendiente)
+  select(-codigo_del_tubo,-diris_2,-accion_pendiente,-consentimiento,
+         -doc_identidad,-dni_2,-vivienda_estatus,
+         -nombres_y_apellidos_del_participante,
+         -(estatus_resultado:codigo_orden),
+         -(estado:diris)) %>% 
+  mutate(fecha_nacimiento=janitor::excel_numeric_to_date(as.numeric(fecha_nacimiento)),
+         fecha_nacimiento=as.character(fecha_nacimiento)) %>% 
+  rename(dni=numero_dni) %>% 
+  mutate(
+    presente_prueba="si", # EXCLUSION!!!! 
+    ig_clasificacion="negativo" # EXCLUSION!!!!
+  ) %>% 
+  left_join(diccionario_conglomerado %>% select(peru_dist=ubigeo,conglomerado))
+# naniar::miss_var_summary() %>%
+# avallecam::print_inf()
+# glimpse()
+
 # csv subject -------------------------------------------------------------
 
 pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>% 
@@ -97,6 +170,13 @@ pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>%
          ) %>% 
   mutate(nombre_completo=str_c(apellido_paterno," ",apellido_materno,", ",nombres),
          nombre_completo=str_to_upper(nombre_completo))
+
+# pp_raw_data %>% #3202x175
+#   union_all(
+#     recovered_observations %>% #38x5
+#       select(-conglomerado,-numero_vivienda)
+#     ) %>% #3240x176
+#   glimpse()
 
 pp_raw_data %>% 
   # colnames()
@@ -230,10 +310,12 @@ anti_join(hh_raw_data, #813
 #' diccionario de ubigeo
 #' retorno ins resultado pm
 
-uu_raw_data_prelab <- left_join(pp_raw_data, #3189
-                         hh_raw_data, #815
-                         by=c("_parent_index"="_index")) %>% #3203 -> HECHO: ver si personas = 0 o son duplicados
-  # naniar::vis_miss()
+uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
+                         hh_raw_data, #816 x 26
+                         by=c("_parent_index"="_index")) %>% #3202 x 200 -> HECHO: ver si personas = 0 o son duplicados
+  # join all recovered fron consolidado_pm x retorno_pm
+  union_all(recovered_observations) %>% #38x5 -> 3240 x 200
+  # unir info de vivienda por jefe de hogar
   select(#`_parent_index`,
          -tipo_vivienda,
          -agua,
@@ -255,6 +337,7 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3189
     TRUE~peru_dist
   )) %>% 
   left_join(ubigeo_diccionario %>% select(-geometry)) %>% #conserva observaciones
+  # naniar::miss_var_summary() %>% avallecam::print_inf()
   select(-peru_depa,-peru_prov) %>% 
   
   mutate(conglomerado=str_replace_all(conglomerado,"\n","")) %>% 
@@ -299,14 +382,19 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3189
   
   #create age categories
   mutate(edad=as.numeric(edad)) %>% 
-  cdcper::cdc_edades_peru(edad)
+  cdcper::cdc_edades_peru(edad) %>% 
+  
+  # last logical correction
+  mutate(tipo_muestra_pcr=case_when(
+    (ig_clasificacion=="negativo" | is.na(ig_clasificacion)) & 
+      (tipo_muestra_pcr!="nasal" | is.na(tipo_muestra_pcr)) ~ "nasal",
+    TRUE~tipo_muestra_pcr
+  )) 
 
 # ________ ----------------------------------------------------------------
 
 
 # UNION: LAB RESULTS -------------------------------------------------------
-
-#' grecia pimentel es negativa
 
 uu_raw_data <- uu_raw_data_prelab %>% 
   
@@ -355,7 +443,7 @@ uu_raw_data %>%
 
 # pendientes, rechazoz e inconsistencias
 uu_raw_data %>% 
-  count(tipo_muestra_pcr,ig_clasificacion,EstatusResultado)
+  count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado)
 
 # pendiente
 uu_raw_data %>% 
@@ -385,9 +473,39 @@ retorno_ins %>%
   # avallecam::print_inf()
   writexl::write_xlsx("table/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
 
+consolidados <- read_rds("data/cdc-consolidados_a_ins.rds") %>% 
+  filter(!is.na(n_final)) %>% 
+  rename(dni=n_final) %>% 
+  rownames_to_column()
+
+# en retorno pero no en consolidados
+retorno_ins %>%
+  anti_join(uu_raw_data) %>% 
+  rename(nombre_completo=nombrePaciente,
+         dni_2=dni) %>% 
+  anti_join(uu_raw_data) %>% 
+  rename(dni=dni_2) %>% #64
+  anti_join(consolidados) %>% #22
+  mutate(nombres_y_apellidos_del_paciente=
+           str_replace(nombre_completo,"(.+), (.+)","\\2 \\1")) %>% 
+  rename(dni_3=dni) %>% 
+  anti_join(consolidados) 
+#' 19, entonces
+#' 45 sí presentes en consolidados
+#' pendiente: corregir nombres o dni para 
+#' limpiar vinculación o rescatar lo que se pueda 
+
 uu_raw_data %>% 
-  select(dni,nombre_completo,EstatusResultado) %>% 
-  filter(str_detect(nombre_completo,"PRINCI"))
+  filter(conglomerado=="2783801") %>% 
+  select(conglomerado,numero_vivienda,participante,nombre_completo) %>% 
+  avallecam::print_inf()
+
+diccionario_ponderaciones %>% 
+  filter(conglomerado=="2783801")
+
+uu_raw_data %>% 
+  select(dni,nombre_completo,EstatusResultado,conglomerado,numero_vivienda) %>% 
+  filter(str_detect(nombre_completo,"GALINDO"))
 
 # uu_raw_data %>% #glimpse()
 #   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,
@@ -528,33 +646,6 @@ uu_raw_data %>%
 uu_raw_data <- read_rds("data/uu_raw_data.rds") #3117
 # uu_raw_data %>% glimpse()
 
-# inputs ------------------------------------------------------------------
-
-# _ CONGLOMERADOS -----------------------------------------------------------
-
-diccionario_conglomerado <- read_rds("data/inei-diccionario_conglomerado.rds") %>% 
-  group_by(ubigeo,distrito,codccpp_bd,zona1_bd,conglomerado#,manzana,longitud,latitud
-  ) %>% 
-  summarise(totvivsel=sum(totvivsel)) %>% 
-  ungroup() 
-
-# _ PONDERACIONES -----------------------------------------------------------
-
-
-diccionario_ponderaciones <- 
-  # readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19 AJUSTADO-enviado-14-7-20.xlsx") %>%
-  readxl::read_excel("data-raw/expansion/FACTOR EXPANSION COVID19-enviado-22-7-20.xlsx") %>%
-  janitor::clean_names() %>% 
-  select(ubigeo,conglomerado=conglomeradofinal,mviv:factorfinal)
-
-# diccionario_ponderaciones %>% 
-#   count(ubigeo)
-# 
-# diccionario_ponderaciones %>% 
-#   count(ubigeo,factorfinal)
-
-# ___________ -------------------------------------------------------------
-
 
 # REVISION: missings ------------------------------------------------------
 
@@ -564,6 +655,19 @@ diccionario_ponderaciones <-
 distrito_conglomerado_nro_viviendas <- uu_raw_data %>% 
   count(cd_dist,conglomerado,numero_vivienda) %>% 
   count(cd_dist,conglomerado)
+
+distrito_conglomerado_nro_viviendas %>% 
+  filter(conglomerado=="27714")
+
+
+# ___ save counting -------------------------------------------------------
+
+distrito_conglomerado_nro_viviendas %>% 
+  write_rds()
+
+# ___ continuacion --------------------------------------------------------
+
+
 
 # conglomerados no muestreados
 diccionario_conglomerado %>% 
@@ -609,11 +713,13 @@ uu_raw_data %>%
 
 
 uu_clean_data <- uu_raw_data %>% #3117 
+  # filter(conglomerado=="2783801") %>% filter(numero_vivienda=="99") %>%
   
   # justificación: sin ningún resultado de prueba no hay outcome
   # va al flujograma de numero de participantes
   # se van 17 observaciones
   filter(presente_prueba=="si") %>% # EXCLUSION!!!!
+  # glimpse()
   
   left_join(diccionario_conglomerado,by = c("conglomerado","cd_dist"="ubigeo")) %>% 
   
@@ -621,14 +727,14 @@ uu_clean_data <- uu_raw_data %>% #3117
   mutate_at(.vars = vars(nm_dist,cd_dist,sexo),.funs = as.factor) %>% 
   
   # justificación: debe tener conglomerado
-  filter(!is.na(totvivsel)) %>% #conserva observaciones
+  # filter(!is.na(totvivsel)) %>% #conserva observaciones
   
   left_join(diccionario_ponderaciones,by = c("conglomerado","cd_dist"="ubigeo")) %>% 
   
   # PENDIENTE: VERIFICAR SI ES UN MISSING NO RECUPERABLE
   # justificación: estuvo en prueba pero no se colectó ningún resultado
   # se va 1
-  filter(ig_clasificacion!="missing") %>% # EXCLUSION!!!!
+  filter(ig_clasificacion!="missing"|!is.na(ig_clasificacion)) %>% # EXCLUSION!!!!
   
   mutate(ig_clasificacion=as.factor(ig_clasificacion),
          diris=as.factor(diris),
@@ -720,6 +826,29 @@ uu_clean_data %>%
 
 uu_clean_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
+
+# CALCULAR: nro viv ------------------------------------------------------
+
+
+# __ conglome | viviendas | sujetos ------------------------------------------
+
+distrito_conglomerado_nro_viviendas <- uu_clean_data %>% 
+  count(cd_dist,conglomerado,numero_vivienda) %>% 
+  # filter(conglomerado=="2783801")
+  count(cd_dist,conglomerado)
+
+distrito_conglomerado_nro_viviendas %>% 
+  writexl::write_xlsx("table/06-ubigeo-conglomerado_numero_de_viviendas.xlsx")
+
+
+distrito_conglomerado_nro_viviendas %>% 
+  filter(conglomerado=="27378")
+
+# uu_raw_data %>%
+uu_clean_data %>%
+  filter(conglomerado=="4724602") %>% 
+  select(conglomerado,numero_vivienda,participante,nombre_completo) %>% 
+  avallecam::print_inf()
 
 # explorar ----------------------------------------------------------------
 
