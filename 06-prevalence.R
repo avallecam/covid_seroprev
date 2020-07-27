@@ -515,6 +515,9 @@ out0301 <- design_03 %>%
             total = survey_total(),
             n = unweighted(n())
   ) %>% 
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   filter(igm=="positivo") 
 
 out0301 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
@@ -988,15 +991,6 @@ figura01 <- outcome_01 %>%
                             "IgM+ o IgG+ o PCR+"="positividad_peru",
   ))
 
-# figura01 %>% 
-#   slice(1) %>% 
-#   select(1:4,n:t) %>% 
-#   mutate(fix=pmap(.l = select(.,n,t),
-#                   .f = seroprevalence_posterior(positive_number_test = n,
-#                                                  total_number_test = t,
-#                                                  sensibility = 0.9694,
-#                                                  specificity = 0.9574)))
-
 figura01 %>% 
   cdc_srvyr_create_table(estim_digits = 2) %>% 
   # select(prevalence_tab)
@@ -1168,3 +1162,64 @@ figure_03_map %>%
                          pad_y = unit(0.5, "in"),
                          style = north_arrow_fancy_orienteering)
 ggsave("figure/33-seroprev-figure03.png",height = 9,width = 10,dpi = "retina")
+
+
+# ________ ----------------------------------------------------------------
+
+
+# CORRECCION Sen/Spe ------------------------------------------------------
+
+figura01_inn <- figura01 %>% 
+  filter(covariate=="Pob. General") %>% 
+  cdc_srvyr_create_table(estim_digits = 3,cilow_digits = 3) %>% 
+  select(1:3,prevalence_tab,total,sum_total) %>% 
+  mutate(se=1,
+         # sp=0.96
+         sp=case_when(
+           outcome=="IgG+"~1,
+           TRUE~0.96
+         )
+  )
+
+figura01_adj <- figura01_inn %>% 
+  mutate(fix=pmap(.l = select(.,
+                              positive_number_test=total,
+                              total_number_test=sum_total,
+                              sensibility=se,
+                              specificity=sp),
+                  .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
+
+figura01_adj %>% 
+  unnest(fix) %>%
+  unnest(summary) %>%
+  cdc_srvyr_create_table_free(estim_var = numeric.mean,
+                              cilow_var = numeric.p05,
+                              ciupp_var = numeric.p95,
+                              estim_digits = 3,
+                              cilow_digits = 3,
+                              ciupp_digits = 3) %>%
+  select(-fix,-posterior,-skim_variable,
+         -estim_tab,-cilow_tab,-ciupp_tab,
+         -starts_with("numeric.")) %>% 
+  rename("prev_90pct_credibility_interval"=fused_tab) %>% 
+  writexl::write_xlsx("table/33-seroprev-figura04.xlsx")
+
+# magic_num <- 1
+# tidy_result <- seroprevalence_posterior(positive_number_test = figura01_inn %>% slice(magic_num) %>% pull(total),
+#                                         total_number_test = figura01_inn %>% slice(magic_num) %>% pull(sum_total),
+#                                         sensibility = figura01_inn %>% slice(magic_num) %>% pull(se),
+#                                         specificity = figura01_inn %>% slice(magic_num) %>% pull(sp)
+#                                         )
+# 
+# tidy_result %>%
+#   select(summary) %>%
+#   unnest(cols = c(summary)) %>%
+#   # mutate_if(.predicate = is.numeric,.funs = ~round(.x,4)) %>%
+#   # mutate_all(.funs = as.character) %>%
+#   cdc_srvyr_create_table_free(estim_var = numeric.mean,
+#                               cilow_var = numeric.p05,
+#                               ciupp_var = numeric.p95,
+#                               estim_digits = 4,
+#                               cilow_digits = 3,
+#                               ciupp_digits = 3) %>%
+#   select(estim_tab:fused_tab)
