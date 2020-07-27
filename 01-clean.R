@@ -109,16 +109,63 @@ ubigeo_diccionario %>%
 ubigeo_diccionario %>% 
   count(diris,ipress,ipress_name)
 
+# csv subject -------------------------------------------------------------
+
+pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>% 
+  select(-3) %>% 
+  mutate(apellido_paterno=str_replace_all(apellido_paterno," ,",""),
+         apellido_materno=str_replace_all(apellido_materno," ,",""),
+         nombres=str_replace_all(nombres," ,",""),
+         apellido_paterno=str_replace_all(apellido_paterno,",",""),
+         apellido_materno=str_replace_all(apellido_materno,",",""),
+         nombres=str_replace_all(nombres,",",""),
+         apellido_paterno=if_else(is.na(apellido_paterno),"",apellido_paterno),
+         apellido_materno=if_else(is.na(apellido_materno),"",apellido_materno),
+         nombres=if_else(is.na(nombres),"",nombres)
+  ) %>% 
+  mutate(nombre_completo=str_c(apellido_paterno," ",apellido_materno,", ",nombres),
+         nombre_completo=str_to_upper(nombre_completo))
+
+# pp_raw_data %>% #3202x175
+#   union_all(
+#     recovered_observations %>% #38x5
+#       select(-conglomerado,-numero_vivienda)
+#     ) %>% #3240x176
+#   glimpse()
+
+pp_raw_data %>% 
+  # colnames()
+  write_csv(str_c("data/seroprev-pp-",my_timestap,".csv"))
+
+pp_raw_data %>% glimpse()
+
+# pp_raw_data %>% 
+#   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,tipo_muestra_pcr) %>%
+#   filter(str_detect(nombre_completo,"______")) %>%
+#   avallecam::print_inf()
+
+registros_por_hh <- pp_raw_data %>% 
+  select(`_parent_index`,`_index`,numero_hogar) %>% 
+  # count(`_parent_index`,`_index`,numero_hogar) %>% 
+  # avallecam::print_inf()
+  group_by(`_parent_index`,numero_hogar) %>% 
+  summarise(n_registros_pp=n()) %>% 
+  ungroup() #%>% 
+# mutate(participante=as.integer(participante),
+#        diferencia_E_O=n_registros-as.integer(participante))
+
+
 # csv household -----------------------------------------------------------
 
 hh_raw_data <- readxl::read_excel(file_name,sheet = 1) %>% 
-  mutate_at(.vars = vars(starts_with("peru_")),.funs = as.factor)
+  mutate_at(.vars = vars(starts_with("peru_")),.funs = as.factor) #%>% 
+  # left_join(registros_por_hh,
+  #           by=c("_index"="_parent_index"))
 
 hh_raw_data %>% 
   write_csv(str_c("data/seroprev-hh-",my_timestap,".csv"))
 
 hh_raw_data %>% glimpse()
-
 
 # xlsx recovered ----------------------------------------------------------
 
@@ -150,50 +197,19 @@ recovered_observations <-
     ig_clasificacion="negativo" # EXCLUSION!!!!
   ) %>% 
   left_join(diccionario_conglomerado %>% select(peru_dist=ubigeo,conglomerado))
+# recovered_observations
 # naniar::miss_var_summary() %>%
 # avallecam::print_inf()
 # glimpse()
-
-# csv subject -------------------------------------------------------------
-
-pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>% 
-  select(-3) %>% 
-  mutate(apellido_paterno=str_replace_all(apellido_paterno," ,",""),
-         apellido_materno=str_replace_all(apellido_materno," ,",""),
-         nombres=str_replace_all(nombres," ,",""),
-         apellido_paterno=str_replace_all(apellido_paterno,",",""),
-         apellido_materno=str_replace_all(apellido_materno,",",""),
-         nombres=str_replace_all(nombres,",",""),
-         apellido_paterno=if_else(is.na(apellido_paterno),"",apellido_paterno),
-         apellido_materno=if_else(is.na(apellido_materno),"",apellido_materno),
-         nombres=if_else(is.na(nombres),"",nombres)
-         ) %>% 
-  mutate(nombre_completo=str_c(apellido_paterno," ",apellido_materno,", ",nombres),
-         nombre_completo=str_to_upper(nombre_completo))
-
-# pp_raw_data %>% #3202x175
-#   union_all(
-#     recovered_observations %>% #38x5
-#       select(-conglomerado,-numero_vivienda)
-#     ) %>% #3240x176
-#   glimpse()
-
-pp_raw_data %>% 
-  # colnames()
-  write_csv(str_c("data/seroprev-pp-",my_timestap,".csv"))
-
-pp_raw_data %>% glimpse()
-
-# pp_raw_data %>% 
-#   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,tipo_muestra_pcr) %>%
-#   filter(str_detect(nombre_completo,"______")) %>%
-#   avallecam::print_inf()
 
 # missings ----------------------------------------------------------------
 
 hh_raw_data %>% 
   naniar::miss_var_summary() %>% 
   avallecam::print_inf()
+
+# hh_raw_data %>% 
+#   filter(is.na(n_registros_pp))
 
 # _______________ ---------------------------------------------------------
 
@@ -230,10 +246,27 @@ vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar dife
          electricidad,
          nro_dormitorios,
          nro_convivientes) %>% 
+  left_join(registros_por_hh %>% 
+              rename(n_registros_vv=n_registros_pp)) %>% 
+  # select()
+  # naniar::miss_var_summary() %>% 
+  # avallecam::print_inf()
   group_by(`_parent_index`) %>% 
-  filter(!is.na(nro_convivientes)) %>% 
+  filter(!is.na(nro_convivientes)) %>% #menos cantidad de valores perdidos
   ungroup() %>% 
-  distinct()
+  distinct() %>% 
+  #corregir valores perdidos con observado
+  mutate(
+    nro_dormitorios = as.numeric(nro_dormitorios),
+    nro_dormitorios = if_else(condition = nro_dormitorios==999,
+                              true = NA_real_,
+                              false = nro_dormitorios),
+    nro_convivientes = as.numeric(nro_convivientes),
+    nro_convivientes = if_else(condition = nro_convivientes==999,
+                               true = as.double(n_registros_vv),
+                               false = nro_convivientes)) #%>% 
+  # filter(nro_convivientes==999) %>% 
+  # filter(nro_dormitorios==999) %>% 
 
 # ver duplicados - NO
 # corregir en issue e issue_decide
@@ -248,6 +281,9 @@ vv_raw_data %>% dim()
 
 # pp_raw_data %>% glimpse()
 #   select(starts_with("material_"),starts_with("hogar"),starts_with("cocina"))
+# vv_raw_data %>% 
+#   avallecam::print_inf()
+  # skimr::skim()
 
 # __________ --------------------------------------------------------------
 
@@ -300,7 +336,11 @@ anti_join(hh_raw_data, #813
           by=c("_index"="_parent_index")) %>% 
   avallecam::print_inf()
 
-
+# hh_raw_data %>% 
+#   count(`_index`,sort = T)
+# pp_raw_data %>% 
+#   count(`_parent_index`) %>% 
+#   avallecam::print_inf()
 
 # union all ---------------------------------------------------------------
 
@@ -315,6 +355,16 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
                          by=c("_parent_index"="_index")) %>% #3202 x 200 -> HECHO: ver si personas = 0 o son duplicados
   # join all recovered fron consolidado_pm x retorno_pm
   union_all(recovered_observations) %>% #38x5 -> 3240 x 200
+  # recover and fix age issue with missings
+  # select(edad,fecha_nacimiento) %>%
+  mutate(edad=as.numeric(edad)) %>% 
+  # filter(as.numeric(edad)>200|is.na(edad)) %>% 
+  mutate(edad=case_when(
+    is.na(edad)~(lubridate::interval(lubridate::ymd(fecha_nacimiento),
+                                     Sys.Date())/lubridate::years(1)) %>% floor(),
+    edad==999~NA_real_,
+    TRUE~edad)) %>% 
+  # avallecam::print_inf()
   # unir info de vivienda por jefe de hogar
   select(#`_parent_index`,
          -tipo_vivienda,
@@ -327,9 +377,11 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
   #recuperacion de datos de vivienda
   # filter(nro_convivientes=="999") %>% 
   # select(participante,nro_convivientes) %>% 
-  mutate(nro_convivientes=if_else(condition = nro_convivientes=="999",
-                                  true = participante,
-                                  false = nro_convivientes)) %>% 
+  mutate(nro_convivientes=case_when(
+    nro_convivientes==0 ~ as.numeric(participante),
+    is.na(nro_convivientes) ~ as.numeric(participante),
+    # nro_convivientes==0 ~ as.numeric(n_registros_vv),
+    TRUE~nro_convivientes)) %>%
   # fix ubigeo-inei
   mutate(peru_dist=as.character(peru_dist)) %>% 
   mutate(peru_dist=case_when(
@@ -382,14 +434,17 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
   
   #create age categories
   mutate(edad=as.numeric(edad)) %>% 
-  cdcper::cdc_edades_peru(edad) %>% 
+  cdcper::cdc_edades_peru(edad) #%>% 
   
-  # last logical correction
-  mutate(tipo_muestra_pcr=case_when(
-    (ig_clasificacion=="negativo" | is.na(ig_clasificacion)) & 
-      (tipo_muestra_pcr!="nasal" | is.na(tipo_muestra_pcr)) ~ "nasal",
-    TRUE~tipo_muestra_pcr
-  )) 
+  # # last logical correction
+  # mutate(tipo_muestra_pcr=case_when(
+  #   (ig_clasificacion=="negativo" | is.na(ig_clasificacion)) & 
+  #     (tipo_muestra_pcr!="nasal" | is.na(tipo_muestra_pcr)) ~ "nasal",
+  #   TRUE~tipo_muestra_pcr
+  # )) 
+
+uu_raw_data_prelab %>% 
+  skimr::skim(edad)
 
 # ________ ----------------------------------------------------------------
 
@@ -806,10 +861,15 @@ uu_clean_data <- uu_raw_data %>% #3117
   mutate(nbi_educacion=sum(pre_educac,na.rm = T)) %>% 
   #do(mutate(.,nbi_educacion=length(pre_educac[!is.na(pre_educac)]))) %>% 
   ungroup() %>% 
-  mutate(ind_pobreza=nbi_educacion+nbi_haci+nbi_ninos_sin_cole+nbi_electricidad+nbi_agua+nbi_desague) %>% 
+  # mutate(ind_pobreza=nbi_educacion+nbi_haci+nbi_ninos_sin_cole+nbi_electricidad+nbi_agua+nbi_desague) %>% 
+  mutate(ind_pobreza=pmap_dbl(.l = select(.,nbi_educacion,nbi_haci,nbi_ninos_sin_cole,
+                                 nbi_electricidad,nbi_agua,nbi_desague),
+                          .f = sum,na.rm=TRUE)) %>% 
   mutate(pobreza=case_when(ind_pobreza==0~"No pobre",
                            ind_pobreza==1~"Pobre",
-                           ind_pobreza>=1~"Pobre extremo"))
+                           ind_pobreza>=1~"Pobre extremo"),
+         pobreza_dico=case_when(ind_pobreza==0~"No pobre",
+                                ind_pobreza>=1~"Pobre"))
 
 # uu_clean_data %>% count(totvivsel)
 
@@ -831,6 +891,10 @@ uu_clean_data %>%
 
 
 # __ conglome | viviendas | sujetos ------------------------------------------
+
+# número total de viviendas 
+uu_clean_data %>% 
+  count(cd_dist,conglomerado,numero_vivienda)
 
 distrito_conglomerado_nro_viviendas <- uu_clean_data %>% 
   count(cd_dist,conglomerado,numero_vivienda) %>% 

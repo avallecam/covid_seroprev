@@ -29,12 +29,36 @@ theme_set(theme_bw())
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
-  filter(edad_decenios!="[100,Inf]") %>% 
+  filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
+  mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
+  filter(ig_clasificacion!="missing") %>% #count(ig_clasificacion)
   mutate(igg=as.factor(igg),
          igm=as.factor(igm),
-         positividad_peru=as.factor(positividad_peru))
+         ig_clasificacion=as.factor(ig_clasificacion),
+         positividad_peru=as.factor(positividad_peru)) #%>% 
+  # pull(ig_clasificacion)
 
 # QC exposure | outcomes! ---------------------------------------------------------------
+
+# pobreza hacinamiento
+uu_clean_data %>% 
+  select(
+    starts_with("nbi_"),
+    pobreza,pobreza_dico,ind_pobreza,
+    nro_dormitorios,nro_convivientes,participante,n_registros_vv,
+    ind_hacin,hacinamiento
+    ) %>% 
+  # glimpse()
+  # filter(is.na(ind_hacin)|is.na(hacinamiento)) %>%
+  # filter(!is.na(nro_convivientes)) %>%
+  # # filter(is.na(nro_convivientes)) %>% 
+  # # skimr::skim(ind_hacin)
+  # avallecam::print_inf()
+  # # count(ind_pobreza,sort = T)
+  naniar::miss_var_summary()
+
+uu_clean_data %>% count(pobreza_dico)
+uu_clean_data %>% count(hacinamiento)
 
 #edad
 uu_clean_data %>% 
@@ -64,9 +88,9 @@ uu_clean_data %>% naniar::miss_var_summary()
 #   filter(cd_dist=="150102") %>%
 #   count(cd_dist,nm_dist,conglomerado,numero_vivienda)
 # 
-# temporary_just_1_psu <- uu_clean_data %>% 
-#   count(cd_dist,nm_dist,conglomerado,sort = T) %>% 
-#   count(cd_dist,nm_dist,sort = T) %>% 
+# temporary_just_1_psu <- uu_clean_data %>%
+#   count(cd_dist,nm_dist,conglomerado,sort = T) %>%
+#   count(cd_dist,nm_dist,sort = T) %>%
 #   filter(n==1) # un conglomerado por distrito
 
 uu_clean_data %>% 
@@ -88,6 +112,13 @@ uu_clean_data %>%
   # # count(conglomerado)
   filter(is.na(factorfinal))
 
+uu_clean_data %>% 
+  select(edad_decenios,ig_clasificacion) %>% 
+  count(edad_decenios,ig_clasificacion)
+  # naniar::miss_var_summary()
+
+uu_clean_data %>% pull(ig_clasificacion) %>% levels()
+
 # ____________ ------------------------------------------------------------
 
 
@@ -101,16 +132,16 @@ uu_clean_data %>%
   naniar::miss_var_summary() %>% 
   avallecam::print_inf()
 
-uu_clean_data %>%
-  # select(edad,ig_clasificacion) %>%
-  # mutate(edad=as.numeric(edad)) %>%
-  # naniar::miss_var_summary()
-  # cdcper::cdc_edades_peru(edad) %>%
-  filter(ig_clasificacion!="missing") %>% 
-  compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
-                               chisq.test.perm = TRUE,byrow = T) %>%
-  compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>% 
-  compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+# uu_clean_data %>%
+#   # select(edad,ig_clasificacion) %>%
+#   # mutate(edad=as.numeric(edad)) %>%
+#   # naniar::miss_var_summary()
+#   # cdcper::cdc_edades_peru(edad) %>%
+#   filter(ig_clasificacion!="missing") %>% 
+#   compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
+#                                chisq.test.perm = TRUE,byrow = T) %>%
+#   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>% 
+#   compareGroups::export2xls("table/01-compareGroups-output-01.xls")
 
 # ____________ ------------------------------------------------------------
 
@@ -150,7 +181,8 @@ out0101 <- design %>%
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   filter(ig_clasificacion=="positivo") 
 
 out0101 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
@@ -165,7 +197,8 @@ out0102 <- design %>%
   ) %>% 
   group_by(sexo) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(ig_clasificacion=="positivo") 
 
@@ -182,7 +215,8 @@ out0103 <- design %>%
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(ig_clasificacion=="positivo") 
 
@@ -199,7 +233,8 @@ out0104 <- design %>%
   ) %>% 
   group_by(edad_decenios) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(ig_clasificacion=="positivo") 
 
@@ -212,11 +247,12 @@ out0105 <- design %>%
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
             total = survey_total(),
             n = unweighted(n())
-  ) %>% 
+  ) %>%
   group_by(edad_quinquenal) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
-  ungroup() %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>%
+  ungroup() %>%
   filter(ig_clasificacion=="positivo")
 
 out0105 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
@@ -233,13 +269,50 @@ out0106 <- design %>%
   ) %>% 
   group_by(diris) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(ig_clasificacion=="positivo")
 
 out0106 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
 
+# 05_covar: pobreza -------------------------------------------------------
+
+
+out0107 <- design %>%
+  group_by(pobreza_dico,ig_clasificacion) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(pobreza_dico) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(ig_clasificacion=="positivo")
+
+out0107
+
+# 05_covar: hacinamiento -------------------------------------------------------
+
+
+out0108 <- design %>%
+  filter(!is.na(hacinamiento)) %>% 
+  group_by(hacinamiento,ig_clasificacion) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(hacinamiento) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(ig_clasificacion=="positivo")
+
+out0108
 
 
 # ___________ -------------------------------------------------------------
@@ -275,7 +348,8 @@ out0201 <- design_02 %>%
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   filter(igg=="positivo") 
 
 out0201 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
@@ -290,7 +364,8 @@ out0202 <- design_02 %>%
   ) %>% 
   group_by(sexo) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igg=="positivo") 
 
@@ -307,7 +382,8 @@ out0203 <- design_02 %>%
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igg=="positivo") 
 
@@ -324,7 +400,8 @@ out0204 <- design_02 %>%
   ) %>% 
   group_by(edad_decenios) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igg=="positivo") 
 
@@ -340,7 +417,8 @@ out0205 <- design_02 %>%
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igg=="positivo")
 
@@ -358,12 +436,49 @@ out0206 <- design_02 %>%
   ) %>% 
   group_by(diris) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igg=="positivo")
 
 out0206 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
+# 05_covar: pobreza -------------------------------------------------------
+
+
+out0207 <- design %>%
+  group_by(pobreza_dico,igg) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(pobreza_dico) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igg=="positivo")
+
+out0207
+
+# 05_covar: hacinamiento -------------------------------------------------------
+
+
+out0208 <- design %>%
+  filter(!is.na(hacinamiento)) %>% 
+  group_by(hacinamiento,igg) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(hacinamiento) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igg=="positivo")
+
+out0208
 
 
 
@@ -414,7 +529,8 @@ out0302 <- design_03 %>%
   ) %>% 
   group_by(sexo) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igm=="positivo") 
 
@@ -431,7 +547,8 @@ out0303 <- design_03 %>%
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igm=="positivo") 
 
@@ -448,7 +565,8 @@ out0304 <- design_03 %>%
   ) %>% 
   group_by(edad_decenios) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igm=="positivo") 
 
@@ -464,7 +582,8 @@ out0305 <- design_03 %>%
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igm=="positivo")
 
@@ -482,12 +601,50 @@ out0306 <- design_03 %>%
   ) %>% 
   group_by(diris) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(igm=="positivo")
 
 out0306 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
+
+# 05_covar: pobreza -------------------------------------------------------
+
+
+out0307 <- design %>%
+  group_by(pobreza_dico,igm) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(pobreza_dico) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igm=="positivo")
+
+out0307
+
+# 05_covar: hacinamiento -------------------------------------------------------
+
+
+out0308 <- design %>%
+  filter(!is.na(hacinamiento)) %>% 
+  group_by(hacinamiento,igm) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(hacinamiento) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igm=="positivo")
+
+out0308
 
 
 
@@ -525,7 +682,8 @@ out0401 <- design_04 %>%
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo") 
 
@@ -541,7 +699,8 @@ out0402 <- design_04 %>%
   ) %>% 
   group_by(sexo) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo") 
 
@@ -558,7 +717,8 @@ out0403 <- design_04 %>%
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo") 
 
@@ -575,7 +735,8 @@ out0404 <- design_04 %>%
   ) %>% 
   group_by(edad_decenios) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo") 
 
@@ -591,7 +752,8 @@ out0405 <- design_04 %>%
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo")
 
@@ -609,11 +771,51 @@ out0406 <- design_04 %>%
   ) %>% 
   group_by(diris) %>% #group_by
   mutate(p = prop.table(n),
-         t = sum(n)) %>% 
+         t = sum(n),
+         sum_total = sum(total)) %>% 
   ungroup() %>% 
   filter(positividad_peru=="positivo")
 
 out0406 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
+
+
+# 05_covar: pobreza -------------------------------------------------------
+
+
+out0407 <- design %>%
+  group_by(pobreza_dico,positividad_peru) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(pobreza_dico) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(positividad_peru=="positivo")
+
+out0407
+
+# 05_covar: hacinamiento -------------------------------------------------------
+
+
+out0408 <- design %>%
+  filter(!is.na(hacinamiento)) %>% 
+  group_by(hacinamiento,positividad_peru) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(),
+            n = unweighted(n())
+  ) %>% 
+  group_by(hacinamiento) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(positividad_peru=="positivo")
+
+out0408
+
 
 
 # __________ --------------------------------------------------------------
@@ -726,24 +928,32 @@ outcome_01 <- out0101 %>%
   union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0103 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0106 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0107 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0108 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_02 <- out0201 %>% 
   union_all(out0202 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0203 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0206 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0207 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0208 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_03 <- out0301 %>% 
   union_all(out0302 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0303 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0306 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0307 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0308 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_04 <- out0401 %>% 
   union_all(out0402 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0403 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0406 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0407 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0408 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 
@@ -759,10 +969,13 @@ figura01 <- outcome_01 %>%
   mutate(covariate=if_else(category=="overall","overall",covariate)) %>% 
   mutate(covariate=fct_relevel(covariate,"overall","sexo")) %>% 
   mutate(covariate=fct_recode(covariate,
-                              "Población General"="overall",
+                              "Pob. General"="overall",
                               "Sexo Biológico"="sexo",
-                              "Etapas de Vida"="edad_etapas_de_vida_t")) %>% 
-  mutate(category=fct_relevel(category,"ninho","adolescente","joven","adulto")) %>% 
+                              "Etapas de Vida"="edad_etapas_de_vida_t",
+                              "Hacinamiento"="hacinamiento",
+                              "Pobreza"="pobreza_dico")) %>% 
+  mutate(category=fct_relevel(category,"ninho","adolescente","joven","adulto",
+                              "Pobre","No pobre")) %>% 
   mutate(category=fct_recode(category,"Prueba"="overall",
                              "Niño"="ninho","Adolescente"="adolescente",
                              "Joven"="joven","Adulto"="adulto",
@@ -773,7 +986,7 @@ figura01 <- outcome_01 %>%
   mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
                             "IgM+ o IgG+"="ig_clasificacion",
                             "IgM+ o IgG+ o PCR+"="positividad_peru",
-  )) 
+  ))
 
 # figura01 %>% 
 #   slice(1) %>% 
@@ -791,19 +1004,23 @@ figura01 %>%
 
 figura01 %>% 
   
-  # filter(outcome!="IgM+") %>% 
-  # filter(outcome!="IgG+") %>% 
+  filter(outcome!="IgM+") %>%
+  filter(outcome!="IgG+") %>%
+  mutate(outcome=case_when(
+    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
+    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+")) %>% 
   
   ggplot_prevalence() +
-  # coord_flip() +
-  facet_wrap(~covariate,scales = "free") +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
+  coord_flip() +
+  facet_grid(covariate~.,scales = "free_y") +
   colorspace::scale_color_discrete_qualitative() +
-  labs(title = "Prevalencia de SARS-CoV-2 por Prueba, Sexo y Edad",
+  labs(title = "Prevalencia de SARS-CoV-2",
        subtitle = "En Lima Metropolitana y Callao, Julio 2020",
        y = "Prevalencia",x = "",
        color = "Prueba"#,size = "CV%"
   )
-ggsave("figure/33-seroprev-figure01.png",height = 4,width = 9,dpi = "retina")
+ggsave("figure/33-seroprev-figure01.png",height = 7,width = 7,dpi = "retina")
 
 # __fig02 -----------------------------------------------------------------
 
@@ -832,8 +1049,11 @@ figura02 %>%
 
 figura02 %>% 
   
-  # filter(outcome!="IgM+") %>% 
-  # filter(outcome!="IgG+") %>% 
+  filter(outcome!="IgM+") %>%
+  filter(outcome!="IgG+") %>%
+  mutate(outcome=case_when(
+    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
+    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+")) %>% 
   
   ggplot_prevalence() +
   colorspace::scale_color_discrete_qualitative() +
