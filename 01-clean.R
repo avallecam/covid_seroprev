@@ -498,33 +498,47 @@ uu_raw_data %>%
 
 # pendientes, rechazoz e inconsistencias
 uu_raw_data %>% 
-  count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado)
+  count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado,
+        convResultado) %>% 
+  avallecam::print_inf()
 
 # pendiente
 uu_raw_data %>% 
-  filter(tipo_muestra_pcr=="nasal") %>% 
-  filter(is.na(EstatusResultado)) %>%
+  # filter(tipo_muestra_pcr=="nasal") %>% 
+  filter(ig_clasificacion=="negativo") %>% 
+  # filter(tipo_muestra_pcr=="nasal" | is.na(tipo_muestra_pcr)) %>% 
+  filter(tipo_muestra_pcr!="no_posible" | is.na(tipo_muestra_pcr)) %>%
+  filter(is.na(EstatusResultado) | is.na(convResultado)) %>%
+  filter(is.na(convResultado)) %>%
+  # count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado,convResultado) #15+15+3+8
+  select(dni,nombre_completo,diris,conglomerado,numero_vivienda,
+         ig_clasificacion,tipo_muestra_pcr,EstatusResultado,
+         convResultado) %>% 
   writexl::write_xlsx("table/04-20200723-pendiente-in_kobo-presente_prueba-pendiente_retorno.xlsx")
 
 # rechazo
 uu_raw_data %>% 
   filter(tipo_muestra_pcr=="nasal") %>% 
-  filter(EstatusResultado=="Rechazo Rom") %>%
+  filter(EstatusResultado=="Rechazo Rom") %>% #2
   writexl::write_xlsx("table/04-20200723-rechazos-in_kobo-presente_prueba-rechazo_rom.xlsx")
 
 # inconsistente: con resultado pero si reporte de envio de muestra
 uu_raw_data %>% 
   filter(tipo_muestra_pcr!="nasal"|is.na(tipo_muestra_pcr)) %>% 
-  # count(tipo_muestra_pcr,EstatusResultado)
-  filter(EstatusResultado=="Resultado Verificado") %>% 
+  filter(ig_clasificacion!="negativo") %>% 
+  filter(EstatusResultado=="Resultado Verificado") %>% #36+9
+  # count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado)
   writexl::write_xlsx("table/04-20200723-inconsistente-in_kobo-sin_prueba-con_resultado.xlsx")
 
 #ausentes
 retorno_ins %>%
+  rename_all(.funs=str_replace,"(.+)","anti_01_\\1") %>%
+  rename(dni=anti_01_dni) %>% 
   anti_join(uu_raw_data) %>% 
-  rename(nombre_completo=nombrePaciente,
+  rename(nombre_completo=anti_01_nombrePaciente,
          dni_2=dni) %>% 
   anti_join(uu_raw_data) %>% 
+  # slice(2) %>% select(1:3)
   # avallecam::print_inf()
   writexl::write_xlsx("table/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
 
@@ -535,32 +549,42 @@ consolidados <- read_rds("data/cdc-consolidados_a_ins.rds") %>%
 
 # en retorno pero no en consolidados
 retorno_ins %>%
+  rename_all(.funs=str_replace,"(.+)","anti_01_\\1") %>%
+  rename(dni=anti_01_dni) %>% 
   anti_join(uu_raw_data) %>% 
-  rename(nombre_completo=nombrePaciente,
+  rename(nombre_completo=anti_01_nombrePaciente,
          dni_2=dni) %>% 
   anti_join(uu_raw_data) %>% 
-  rename(dni=dni_2) %>% #64
-  anti_join(consolidados) %>% #22
+  rename(dni=dni_2) %>% #64 -> 22
+  anti_join(consolidados) %>% #22 -> 16
   mutate(nombres_y_apellidos_del_paciente=
            str_replace(nombre_completo,"(.+), (.+)","\\2 \\1")) %>% 
   rename(dni_3=dni) %>% 
-  anti_join(consolidados) 
+  anti_join(consolidados) #15 
 #' 19, entonces
 #' 45 sí presentes en consolidados
 #' pendiente: corregir nombres o dni para 
 #' limpiar vinculación o rescatar lo que se pueda 
 
-uu_raw_data %>% 
-  filter(conglomerado=="2783801") %>% 
-  select(conglomerado,numero_vivienda,participante,nombre_completo) %>% 
-  avallecam::print_inf()
+# retorno_ins %>% 
+#   filter(str_detect(nombrePaciente,"________")) %>% 
+#   select(dni,nombrePaciente)
+# uu_raw_data %>% 
+#   filter(str_detect(nombre_completo,"________")) %>% 
+#   select(dni,nombre_completo)
 
-diccionario_ponderaciones %>% 
-  filter(conglomerado=="2783801")
 
-uu_raw_data %>% 
-  select(dni,nombre_completo,EstatusResultado,conglomerado,numero_vivienda) %>% 
-  filter(str_detect(nombre_completo,"GALINDO"))
+# uu_raw_data %>% 
+#   filter(conglomerado=="_______") %>% 
+#   select(conglomerado,numero_vivienda,participante,nombre_completo) %>% 
+#   avallecam::print_inf()
+# 
+# diccionario_ponderaciones %>% 
+#   filter(conglomerado=="_______")
+
+# uu_raw_data %>% 
+#   select(dni,nombre_completo,EstatusResultado,conglomerado,numero_vivienda) %>% 
+#   filter(str_detect(nombre_completo,"________"))
 
 # uu_raw_data %>% #glimpse()
 #   select(dni,nombre_completo,nombres,apellido_paterno,apellido_materno,
@@ -879,6 +903,14 @@ uu_clean_data <- uu_raw_data %>% #3117
 uu_clean_data %>% 
   write_rds("data/uu_clean_data.rds")
 
+# __ reporte: flowchart --------------------------------------------------------------
+
+hh_raw_data %>% dim()
+pp_raw_data %>% dim()
+vv_raw_data %>% dim()
+uu_raw_data %>% dim()
+uu_clean_data %>% dim()
+
 # outcomes! ---------------------------------------------------------------
 
 uu_clean_data %>% 
@@ -889,7 +921,18 @@ uu_clean_data %>%
 
 # EDUCATION subset --------------------------------------------------------
 
-# uu_clean_data
+uu_clean_data %>% 
+  janitor::tabyl(nivel_academico) %>% 
+  janitor::adorn_pct_formatting()
+
+uu_clean_data %>% 
+  select(dni,nombre_completo,#nombres,apellido_paterno,apellido_materno,
+         edad,nivel_academico) %>% 
+  # naniar::miss_var_summary() %>% 
+  # avallecam::print_inf()
+  filter(is.na(nivel_academico)) %>% 
+  # avallecam::print_inf()
+  writexl::write_xlsx("table/08-20200728-missings-nivel_educativo.xlsx")
 
 # CALCULAR: nro viv ------------------------------------------------------
 
