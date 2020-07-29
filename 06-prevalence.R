@@ -26,16 +26,32 @@ library(writexl)
 
 theme_set(theme_bw())
 
+
+# functions ---------------------------------------------------------------
+
+source("10-prevalence_functions.R")
+
+source("08-uncertainty_prev.R")
+
+outcome_to_numeric <- function(variable) {
+  as.numeric({{variable}})-1
+}
+
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
   filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
   mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
   filter(ig_clasificacion!="missing") %>% #count(ig_clasificacion)
-  mutate(igg=as.factor(igg),
-         igm=as.factor(igm),
-         ig_clasificacion=as.factor(ig_clasificacion),
-         positividad_peru=as.factor(positividad_peru)) #%>% 
+  mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
+            .funs = as.factor) %>% 
+  # mutate(igg=as.factor(igg),
+  #        igm=as.factor(igm),
+  #        ig_clasificacion=as.factor(ig_clasificacion),
+  #        positividad_peru=as.factor(positividad_peru)) %>% 
+  mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
+            .funs = funs("num"=outcome_to_numeric)) #%>% count(igg,igg_num)
+  # mutate(ig_clasificacion_num=outcome_to_numeric(ig_clasificacion))
   # pull(ig_clasificacion)
 
 # QC exposure | outcomes! ---------------------------------------------------------------
@@ -143,6 +159,34 @@ uu_clean_data %>%
 #   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>% 
 #   compareGroups::export2xls("table/01-compareGroups-output-01.xls")
 
+# ________ ----------------------------------------------------------------
+
+
+# PROPORCION CRUDA --------------------------------------------------------
+
+library(moderndive)
+library(infer)
+library(gmodels)
+raw_prop_table <- uu_clean_data %>% 
+  select(rowname,ends_with("_num")) %>% 
+  pivot_longer(cols = -rowname,names_to = "outcome",values_to = "value") %>% 
+  group_by(outcome) %>% 
+  summarise(
+    raw_prop=ci.binom(value)[1],
+    raw_lowc=ci.binom(value)[2],
+    raw_uppc=ci.binom(value)[3]#,
+    # raw_semc=ci.binom(value)[3]
+  ) %>% 
+  cdc_srvyr_create_table_free(estim_var = raw_prop,
+                              cilow_var = raw_lowc,
+                              ciupp_var = raw_uppc,
+                              cilow_digits = 3,
+                              ciupp_digits = 3) %>% 
+  select(-estim_tab,-cilow_tab,-ciupp_tab) %>% 
+  rename(raw_proportion_tab=fused_tab)
+
+raw_prop_table
+
 # ____________ ------------------------------------------------------------
 
 # SEROPREVALENCIA ---------------------------------------------------------
@@ -177,7 +221,7 @@ design <- uu_clean_data %>%
 out0101 <- design %>%
   group_by(ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
@@ -187,12 +231,13 @@ out0101 <- design %>%
 
 out0101 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
 
+
 # 02_sexo ----------------------------------------------------------------
 
 out0102 <- design %>%
   group_by(sexo,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(sexo) %>% #group_by
@@ -210,7 +255,7 @@ out0102 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
 out0103 <- design %>%
   group_by(edad_etapas_de_vida_t,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
@@ -228,7 +273,7 @@ out0103 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
 out0104 <- design %>%
   group_by(edad_decenios,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_decenios) %>% #group_by
@@ -245,7 +290,7 @@ out0104 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
 out0105 <- design %>%
   group_by(edad_quinquenal,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>%
   group_by(edad_quinquenal) %>% #group_by
@@ -264,7 +309,7 @@ out0105 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
 out0106 <- design %>%
   group_by(diris,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(diris) %>% #group_by
@@ -283,7 +328,7 @@ out0106 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 out0107 <- design %>%
   group_by(pobreza_dico,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(pobreza_dico) %>% #group_by
@@ -302,7 +347,7 @@ out0108 <- design %>%
   filter(!is.na(hacinamiento)) %>% 
   group_by(hacinamiento,ig_clasificacion) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(hacinamiento) %>% #group_by
@@ -344,7 +389,7 @@ design_02 <- uu_clean_data %>%
 out0201 <- design_02 %>%
   group_by(igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
@@ -359,7 +404,7 @@ out0201 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
 out0202 <- design_02 %>%
   group_by(sexo,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(sexo) %>% #group_by
@@ -377,7 +422,7 @@ out0202 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
 out0203 <- design_02 %>%
   group_by(edad_etapas_de_vida_t,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
@@ -395,7 +440,7 @@ out0203 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
 out0204 <- design_02 %>%
   group_by(edad_decenios,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_decenios) %>% #group_by
@@ -412,7 +457,7 @@ out0204 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
 out0205 <- design_02 %>%
   group_by(edad_quinquenal,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
@@ -431,7 +476,7 @@ out0205 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
 out0206 <- design_02 %>%
   group_by(diris,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(diris) %>% #group_by
@@ -449,7 +494,7 @@ out0206 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 out0207 <- design %>%
   group_by(pobreza_dico,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(pobreza_dico) %>% #group_by
@@ -468,7 +513,7 @@ out0208 <- design %>%
   filter(!is.na(hacinamiento)) %>% 
   group_by(hacinamiento,igg) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(hacinamiento) %>% #group_by
@@ -512,7 +557,7 @@ design_03 <- uu_clean_data %>%
 out0301 <- design_03 %>%
   group_by(igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
@@ -527,7 +572,7 @@ out0301 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
 out0302 <- design_03 %>%
   group_by(sexo,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(sexo) %>% #group_by
@@ -545,7 +590,7 @@ out0302 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
 out0303 <- design_03 %>%
   group_by(edad_etapas_de_vida_t,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
@@ -563,7 +608,7 @@ out0303 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
 out0304 <- design_03 %>%
   group_by(edad_decenios,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_decenios) %>% #group_by
@@ -580,7 +625,7 @@ out0304 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
 out0305 <- design_03 %>%
   group_by(edad_quinquenal,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
@@ -599,7 +644,7 @@ out0305 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
 out0306 <- design_03 %>%
   group_by(diris,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(diris) %>% #group_by
@@ -618,7 +663,7 @@ out0306 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 out0307 <- design %>%
   group_by(pobreza_dico,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(pobreza_dico) %>% #group_by
@@ -637,7 +682,7 @@ out0308 <- design %>%
   filter(!is.na(hacinamiento)) %>% 
   group_by(hacinamiento,igm) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(hacinamiento) %>% #group_by
@@ -681,7 +726,7 @@ design_04 <- uu_clean_data %>%
 out0401 <- design_04 %>%
   group_by(positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   mutate(p = prop.table(n),
@@ -697,7 +742,7 @@ out0401 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
 out0402 <- design_04 %>%
   group_by(sexo,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(sexo) %>% #group_by
@@ -715,7 +760,7 @@ out0402 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
 out0403 <- design_04 %>%
   group_by(edad_etapas_de_vida_t,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_etapas_de_vida_t) %>% #group_by
@@ -733,7 +778,7 @@ out0403 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
 out0404 <- design_04 %>%
   group_by(edad_decenios,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_decenios) %>% #group_by
@@ -750,7 +795,7 @@ out0404 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
 out0405 <- design_04 %>%
   group_by(edad_quinquenal,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(edad_quinquenal) %>% #group_by
@@ -769,7 +814,7 @@ out0405 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
 out0406 <- design_04 %>%
   group_by(diris,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(diris) %>% #group_by
@@ -788,7 +833,7 @@ out0406 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 out0407 <- design %>%
   group_by(pobreza_dico,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(pobreza_dico) %>% #group_by
@@ -807,7 +852,7 @@ out0408 <- design %>%
   filter(!is.na(hacinamiento)) %>% 
   group_by(hacinamiento,positividad_peru) %>% #group_by
   summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(),
+            total = survey_total(vartype = c("ci","cv")),
             n = unweighted(n())
   ) %>% 
   group_by(hacinamiento) %>% #group_by
@@ -818,6 +863,23 @@ out0408 <- design %>%
   filter(positividad_peru=="positivo")
 
 out0408
+
+
+# __________ --------------------------------------------------------------
+
+
+# CORRECCION Sen/Spe ------------------------------------------------------
+
+# pryr::mem_used()
+# 
+# rm(list = ls())
+
+# source("10-prevalence_functions.R")
+# source("08-uncertainty_prev.R")
+
+# figura01 <- read_rds("data/33-seroprev-figure01.rds")
+
+# pryr::mem_used()
 
 
 # ___________ -------------------------------------------------------------
@@ -831,11 +893,6 @@ out0408
 #' 
 #' more
 #' performance of surveillance due to underreporting
-
-
-# functions ---------------------------------------------------------------
-
-source("10-prevalence_functions.R")
 
 # tables ------------------------------------------------------------------
 
@@ -875,7 +932,7 @@ outcome_04 <- out0401 %>%
 
 # figure ------------------------------------------------------------------
 
-# __fig01 -----------------------------------------------------------------
+# __fig01: all -----------------------------------------------------------------
 
 figura01 <- outcome_01 %>% 
   union_all(outcome_02) %>% 
@@ -931,7 +988,7 @@ ggsave("figure/33-seroprev-figure01.png",height = 7,width = 7,dpi = "retina")
 
 figura01 %>% write_rds("data/33-seroprev-figure01.rds")
 
-# __fig02 -----------------------------------------------------------------
+# __fig02: edad decenio -----------------------------------------------------------------
 
 
 figura02 <- out0104 %>% 
@@ -979,7 +1036,7 @@ ggsave("figure/33-seroprev-figure02.png",height = 4,width = 6.5,dpi = "retina")
 
 
 
-# __fig03 -----------------------------------------------------------------
+# __fig03: espacial diris -----------------------------------------------------------------
 
 library(sf)
 library(ggspatial)
@@ -1084,41 +1141,81 @@ ggsave("figure/33-seroprev-figure03.png",height = 9,width = 10,dpi = "retina")
 
 # CORRECCION Sen/Spe ------------------------------------------------------
 
-# pryr::mem_used()
-# 
-# rm(list = ls())
+# __fig00 -----------------------------------------------------------------
 
-source("10-prevalence_functions.R")
-source("08-uncertainty_prev.R")
+# ____ setup --------------------------------------------------------------
 
-# figura01 <- read_rds("data/33-seroprev-figure01.rds")
 
-# pryr::mem_used()
-
-figura01_inn <- figura01 %>% 
-  filter(covariate=="Pob. General") %>% 
-  cdc_srvyr_create_table(estim_digits = 3,cilow_digits = 3) %>% 
-  select(1:3,prevalence_tab,total,sum_total) %>% 
-  mutate_at(.vars = vars(total,sum_total),.funs = round,digits = 0) %>% 
-  mutate(se=1,
-         # sp=0.96
-         sp=case_when(
-           outcome=="IgG+"~1,
-           TRUE~0.96
-         )
+figura00_pre <- outcome_01 %>% 
+  union_all(outcome_02) %>% 
+  union_all(outcome_03) %>% 
+  union_all(outcome_04) %>% 
+  # round numbers are required
+  mutate_at(.vars = vars(total,sum_total),.funs = round,digits = 0) %>%
+  # select(1:4) %>% 
+  #segun validacion local ins
+  mutate(se_loc=case_when(
+    outcome=="ig_clasificacion"~0.999,
+    outcome=="igg"~0.999,
+    outcome=="igm"~0.999,
+    outcome=="positividad_peru"~NA_real_
+  ),
+  sp_loc=case_when(
+    outcome=="ig_clasificacion"~0.96,
+    outcome=="igg"~0.999,
+    outcome=="igm"~0.96,
+    outcome=="positividad_peru"~NA_real_
+  )
+  ) %>% 
+  #segun fabricante
+  mutate(se_fab=case_when(
+    outcome=="ig_clasificacion"~0.9694,
+    outcome=="igg"~0.9694,
+    outcome=="igm"~0.9694,
+    outcome=="positividad_peru"~NA_real_
+  ),
+  sp_fab=case_when(
+    outcome=="ig_clasificacion"~0.9574,
+    outcome=="igg"~0.9574,
+    outcome=="igm"~0.9574,
+    outcome=="positividad_peru"~NA_real_
+  )
   )
 
-figura01_adj <- figura01_inn %>% 
-  # slice(1) %>% 
-  mutate(fix=pmap(.l = select(.,
-                              positive_number_test=total,
-                              total_number_test=sum_total,
-                              sensibility=se,
-                              specificity=sp),
-                  .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
+# ____ apply serological sampling -----------------------------------------
 
-figura01_adj %>% 
-  unnest(fix) %>%
+
+figura00_adj <- figura00_pre %>% 
+  filter(category=="overall") %>% 
+  # slice(1) %>% 
+  filter(!is.na(se_loc)) %>% 
+  mutate(adj_loc=pmap(.l = select(.,
+                                  positive_number_test=total,
+                                  total_number_test=sum_total,
+                                  sensibility=se_loc,
+                                  specificity=sp_loc),
+                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
+  mutate(adj_fab=pmap(.l = select(.,
+                                  positive_number_test=total,
+                                  total_number_test=sum_total,
+                                  sensibility=se_fab,
+                                  specificity=sp_fab),
+                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
+
+# ____ create table -------------------------------------------------------
+
+figura00_adj_loc <- figura00_adj %>% 
+  select(1:6, ends_with("_loc")) %>% 
+  cdc_srvyr_create_table_free(estim_var = proportion,
+                              cilow_var = proportion_low,
+                              ciupp_var = proportion_upp,
+                              estim_digits = 3,
+                              cilow_digits = 3,
+                              ciupp_digits = 3) %>% 
+  select(-estim_tab,-cilow_tab,-ciupp_tab,
+         -proportion,-proportion_low,-proportion_upp) %>% 
+  rename(proportion_tab=fused_tab) %>% 
+  unnest(adj_loc) %>%
   unnest(summary) %>%
   cdc_srvyr_create_table_free(estim_var = numeric.mean,
                               cilow_var = numeric.p05,
@@ -1126,38 +1223,61 @@ figura01_adj %>%
                               estim_digits = 3,
                               cilow_digits = 3,
                               ciupp_digits = 3) %>%
+  # glimpse()
   select(-posterior,-skim_variable,
          -estim_tab,-cilow_tab,-ciupp_tab,
          -starts_with("numeric.")) %>% 
-  rename("prev_90pct_credibility_interval"=fused_tab) %>% 
-  writexl::write_xlsx("table/33-seroprev-figura04.xlsx")
+  rename("loc_prev_90pct_credibility_interval"=fused_tab)
 
-# solve issue -------------------------------------------------------------
-
-
-magic_num <- 1
-n_1 <- figura01_inn %>% slice(magic_num) %>% pull(total)
-n_2 <- figura01_inn %>% slice(magic_num) %>% pull(sum_total)
-n_3 <- figura01_inn %>% slice(magic_num) %>% pull(se)
-n_4 <- figura01_inn %>% slice(magic_num) %>% pull(sp)
-tidy_result <- seroprevalence_posterior(positive_number_test = n_1,
-                                        total_number_test = n_2,
-                                        sensibility = n_3,
-                                        specificity = n_4)
-tidy_result <- seroprevalence_posterior(positive_number_test = 2481608,
-                                        total_number_test = 11481195,#2481608+8999587,
-                                        sensibility = 1,
-                                        specificity = 0.96)
-
-tidy_result %>%
-  select(summary) %>%
-  unnest(cols = c(summary)) %>%
-  # mutate_if(.predicate = is.numeric,.funs = ~round(.x,4)) %>%
-  # mutate_all(.funs = as.character) %>%
+figura00_adj_fab <- figura00_adj %>% 
+  select(1:6, ends_with("_fab")) %>% 
+  cdc_srvyr_create_table_free(estim_var = proportion,
+                              cilow_var = proportion_low,
+                              ciupp_var = proportion_upp,
+                              estim_digits = 3,
+                              cilow_digits = 3,
+                              ciupp_digits = 3) %>% 
+  select(-estim_tab,-cilow_tab,-ciupp_tab,
+         -proportion,-proportion_low,-proportion_upp) %>% 
+  rename(proportion_tab=fused_tab) %>% 
+  unnest(adj_fab) %>%
+  unnest(summary) %>%
   cdc_srvyr_create_table_free(estim_var = numeric.mean,
                               cilow_var = numeric.p05,
                               ciupp_var = numeric.p95,
-                              estim_digits = 4,
+                              estim_digits = 3,
+                              cilow_digits = 3,
+                              ciupp_digits = 4) %>%
+  # glimpse()
+  select(-posterior,-skim_variable,
+         -estim_tab,-cilow_tab,-ciupp_tab,
+         -starts_with("numeric.")) %>% 
+  rename("fab_prev_90pct_credibility_interval"=fused_tab)
+
+figura00_adj_loc %>% 
+  writexl::write_xlsx("table/33-seroprev-figura04-loc.xlsx")
+
+figura00_adj_fab %>% 
+  writexl::write_xlsx("table/33-seroprev-figura04-fab.xlsx")
+
+
+# temporary ---------------------------------------------------------------
+
+adj_prev_table <- figura00_pre %>% 
+  filter(category=="overall") %>% 
+  select(1:6) %>% 
+  cdc_srvyr_create_table_free(estim_var = proportion,
+                              cilow_var = proportion_low,
+                              ciupp_var = proportion_upp,
+                              estim_digits = 3,
                               cilow_digits = 3,
                               ciupp_digits = 3) %>%
-  select(estim_tab:fused_tab)
+  # glimpse()
+  select(-estim_tab,-cilow_tab,-ciupp_tab#,
+         # -starts_with("proportion")
+         ) %>% 
+  rename("adj_prevalence"=fused_tab)
+
+raw_prop_table %>% writexl::write_xlsx("table/33-seroprev-figura04-raw.xlsx")
+adj_prev_table %>% writexl::write_xlsx("table/33-seroprev-figura04-adj.xlsx")
+figura00_adj_loc
