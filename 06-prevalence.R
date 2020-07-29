@@ -820,14 +820,6 @@ out0408 <- design %>%
 out0408
 
 
-
-# __________ --------------------------------------------------------------
-
-
-# CORRECCION Sen/Spe ------------------------------------------------------
-
-source("08-uncertainty_prev.R")
-
 # ___________ -------------------------------------------------------------
 
 # OUTPUTS -----------------------------------------------------------------
@@ -843,86 +835,7 @@ source("08-uncertainty_prev.R")
 
 # functions ---------------------------------------------------------------
 
-
-tidy_srvyr_tibble <- function(data) {
-  data %>% 
-    mutate(covariate=colnames(.)[1]) %>% 
-    select(covariate,everything()) %>% 
-    rename_at(.vars = vars(2),
-              .funs = str_replace,"(.+)","category")
-}
-
-cdc_srvyr_tibble_02 <- function(data) {
-  data %>% 
-    mutate(covariate=if_else(is.na(covariate),colnames(.)[1],covariate)) %>% 
-    mutate(outcome=colnames(.)[1]) %>% 
-    mutate(category=if_else(is.na(category),"overall",category)) %>% 
-    select_if(.predicate = negate(is.factor)) %>% 
-    select(covariate,category,outcome,everything())
-}
-
-cdc_srvyr_tibble_03 <- function(data) {
-  data %>% 
-    mutate(covariate=if_else(is.na(covariate),colnames(.)[1],covariate)) %>% 
-    select(-covariate,covariate) %>% 
-    select(-category,category) %>% 
-    mutate(outcome=colnames(.)[1]) %>% 
-    # mutate(category=if_else(is.na(category),"overall",category)) %>% 
-    select(-1) %>% 
-    # select_if(.predicate = negate(is.factor)) %>% 
-    select(covariate,category,outcome,everything())
-}
-
-cdc_srvyr_create_table <- function(data,
-                                   estim_digits=3,
-                                   cilow_digits=2,
-                                   ciupp_digits=3) {
-  data %>% 
-    mutate_if(.predicate = is.numeric,
-              .funs = funs("tab"=.*100)) %>% 
-    # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
-    mutate_at(.vars = vars(proportion_tab),.funs = format,digits=estim_digits) %>% 
-    mutate_at(.vars = vars(proportion_low_tab),.funs = format,digits=cilow_digits) %>% 
-    mutate_at(.vars = vars(proportion_upp_tab),.funs = format,digits=ciupp_digits) %>% 
-    mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
-    mutate(prevalence=str_c(proportion_tab,"%\n(",proportion_low_tab," - ",proportion_upp_tab,")")) %>%
-    mutate(prevalence_tab=str_c(proportion_tab,"% (",proportion_low_tab,"-",proportion_upp_tab,")")) %>%
-    mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
-    # select(-starts_with("proportion"),-ig_clasificacion)
-}
-
-cdc_srvyr_create_table_02 <- function(data,
-                                      proportion_tab=proportion_tab,
-                                      proportion_low_tab=proportion_low_tab,
-                                      proportion_upp_tab=proportion_upp_tab,
-                                      estim_digits=3,
-                                      cilow_digits=2,
-                                      ciupp_digits=3) {
-  data %>% 
-    mutate_if(.predicate = is.numeric,
-              .funs = funs("tab"=.*100)) %>% 
-    # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
-    mutate_at(.vars = vars({{proportion_tab}}),.funs = format,digits=estim_digits) %>% 
-    mutate_at(.vars = vars({{proportion_low_tab}}),.funs = format,digits=cilow_digits) %>% 
-    mutate_at(.vars = vars({{proportion_upp_tab}}),.funs = format,digits=ciupp_digits) %>% 
-    # mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
-    # mutate(prevalence=str_c(proportion_tab,"%\n(",proportion_low_tab,"-",proportion_upp_tab,")")) %>%
-    mutate(prevalence_tab=str_c({{proportion_tab}},"% (",{{proportion_low_tab}},"-",{{proportion_upp_tab}},")")) #%>%
-    # mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
-  # select(-starts_with("proportion"),-ig_clasificacion)
-}
-
-ggplot_prevalence <- function(data) {
-  data %>% 
-    ggplot(aes(x = category,y = proportion,color=outcome,group=outcome)) +
-    # geom_point(aes(size=proportion_cv),position = position_dodge(width = 0.5)) +
-    geom_point(position = position_dodge(width = 0.5)) +
-    geom_errorbar(aes(max=proportion_upp,min=proportion_low),position = position_dodge(width = 0.5)) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1),
-                       breaks = scales::pretty_breaks(n = 10)) +
-    # scale_size_continuous(labels = scales::percent_format()) +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-}
+source("10-prevalence_functions.R")
 
 # tables ------------------------------------------------------------------
 
@@ -1015,6 +928,8 @@ figura01 %>%
        color = "Prueba"#,size = "CV%"
   )
 ggsave("figure/33-seroprev-figure01.png",height = 7,width = 7,dpi = "retina")
+
+figura01 %>% write_rds("data/33-seroprev-figure01.rds")
 
 # __fig02 -----------------------------------------------------------------
 
@@ -1164,15 +1079,27 @@ figure_03_map %>%
 ggsave("figure/33-seroprev-figure03.png",height = 9,width = 10,dpi = "retina")
 
 
-# ________ ----------------------------------------------------------------
+# __________ --------------------------------------------------------------
 
 
 # CORRECCION Sen/Spe ------------------------------------------------------
+
+# pryr::mem_used()
+# 
+# rm(list = ls())
+
+source("10-prevalence_functions.R")
+source("08-uncertainty_prev.R")
+
+# figura01 <- read_rds("data/33-seroprev-figure01.rds")
+
+# pryr::mem_used()
 
 figura01_inn <- figura01 %>% 
   filter(covariate=="Pob. General") %>% 
   cdc_srvyr_create_table(estim_digits = 3,cilow_digits = 3) %>% 
   select(1:3,prevalence_tab,total,sum_total) %>% 
+  mutate_at(.vars = vars(total,sum_total),.funs = round,digits = 0) %>% 
   mutate(se=1,
          # sp=0.96
          sp=case_when(
@@ -1182,6 +1109,7 @@ figura01_inn <- figura01 %>%
   )
 
 figura01_adj <- figura01_inn %>% 
+  # slice(1) %>% 
   mutate(fix=pmap(.l = select(.,
                               positive_number_test=total,
                               total_number_test=sum_total,
@@ -1198,28 +1126,38 @@ figura01_adj %>%
                               estim_digits = 3,
                               cilow_digits = 3,
                               ciupp_digits = 3) %>%
-  select(-fix,-posterior,-skim_variable,
+  select(-posterior,-skim_variable,
          -estim_tab,-cilow_tab,-ciupp_tab,
          -starts_with("numeric.")) %>% 
   rename("prev_90pct_credibility_interval"=fused_tab) %>% 
   writexl::write_xlsx("table/33-seroprev-figura04.xlsx")
 
-# magic_num <- 1
-# tidy_result <- seroprevalence_posterior(positive_number_test = figura01_inn %>% slice(magic_num) %>% pull(total),
-#                                         total_number_test = figura01_inn %>% slice(magic_num) %>% pull(sum_total),
-#                                         sensibility = figura01_inn %>% slice(magic_num) %>% pull(se),
-#                                         specificity = figura01_inn %>% slice(magic_num) %>% pull(sp)
-#                                         )
-# 
-# tidy_result %>%
-#   select(summary) %>%
-#   unnest(cols = c(summary)) %>%
-#   # mutate_if(.predicate = is.numeric,.funs = ~round(.x,4)) %>%
-#   # mutate_all(.funs = as.character) %>%
-#   cdc_srvyr_create_table_free(estim_var = numeric.mean,
-#                               cilow_var = numeric.p05,
-#                               ciupp_var = numeric.p95,
-#                               estim_digits = 4,
-#                               cilow_digits = 3,
-#                               ciupp_digits = 3) %>%
-#   select(estim_tab:fused_tab)
+# solve issue -------------------------------------------------------------
+
+
+magic_num <- 1
+n_1 <- figura01_inn %>% slice(magic_num) %>% pull(total)
+n_2 <- figura01_inn %>% slice(magic_num) %>% pull(sum_total)
+n_3 <- figura01_inn %>% slice(magic_num) %>% pull(se)
+n_4 <- figura01_inn %>% slice(magic_num) %>% pull(sp)
+tidy_result <- seroprevalence_posterior(positive_number_test = n_1,
+                                        total_number_test = n_2,
+                                        sensibility = n_3,
+                                        specificity = n_4)
+tidy_result <- seroprevalence_posterior(positive_number_test = 2481608,
+                                        total_number_test = 11481195,#2481608+8999587,
+                                        sensibility = 1,
+                                        specificity = 0.96)
+
+tidy_result %>%
+  select(summary) %>%
+  unnest(cols = c(summary)) %>%
+  # mutate_if(.predicate = is.numeric,.funs = ~round(.x,4)) %>%
+  # mutate_all(.funs = as.character) %>%
+  cdc_srvyr_create_table_free(estim_var = numeric.mean,
+                              cilow_var = numeric.p05,
+                              ciupp_var = numeric.p95,
+                              estim_digits = 4,
+                              cilow_digits = 3,
+                              ciupp_digits = 3) %>%
+  select(estim_tab:fused_tab)

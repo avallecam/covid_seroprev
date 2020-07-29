@@ -127,3 +127,24 @@ cdc_srvyr_create_table_free <- function(data,
 #                               cilow_digits = 3,
 #                               ciupp_digits = 4) %>% 
 #   select(estim_tab:fused_tab)
+
+
+# sample_posterior_r_mcmc_hyperR(samps = 10000,
+#                                # posi = 321,ni = 321+1234,
+#                                # posi = 16,ni = 16+84,
+#                                # se = 0.93,sp = 0.975,
+#                                posi = as.integer(n_1),
+#                                ni = as.integer(n_2),
+#                                se = n_3,
+#                                sp = n_4,
+#                                gam0 = 150 # value from paper # hyperprior variance parameter - https://github.com/LarremoreLab/covid_serological_sampling/blob/20122a214bdd5416f92eec1b831087de3409232c/codebase/seroprevalence.py#L191
+# )
+# 
+# res <- seroprevalence_posterior(positive_number_test = 2481608,
+#                          total_number_test = 11481195,#2481608+8999587,
+#                          sensibility = 1,
+#                          specificity = 0.96)
+# 
+# res %>%
+#   unnest(summary) %>%
+#   glimpse()

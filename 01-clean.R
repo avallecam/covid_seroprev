@@ -887,6 +887,10 @@ uu_clean_data %>%
 uu_clean_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
 
+# EDUCATION subset --------------------------------------------------------
+
+# uu_clean_data
+
 # CALCULAR: nro viv ------------------------------------------------------
 
 
