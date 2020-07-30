@@ -109,6 +109,77 @@ ubigeo_diccionario %>%
 ubigeo_diccionario %>% 
   count(diris,ipress,ipress_name)
 
+# csv household -----------------------------------------------------------
+
+hh_raw_data <- readxl::read_excel(file_name,sheet = 1) %>% 
+  mutate_at(.vars = vars(starts_with("peru_")),.funs = as.factor) #%>% 
+# left_join(registros_por_hh,
+#           by=c("_index"="_parent_index"))
+
+hh_raw_data %>% 
+  write_csv(str_c("data/seroprev-hh-",my_timestap,".csv"))
+
+hh_raw_data %>% glimpse()
+
+# missings ----------------------------------------------------------------
+
+hh_raw_data %>% 
+  naniar::miss_var_summary() %>% 
+  avallecam::print_inf()
+
+# hh_raw_data %>% 
+#   filter(is.na(n_registros_pp))
+
+hh_raw_data
+
+# xlsx recovered ----------------------------------------------------------
+
+#need to add
+recovered_observations <- 
+  readxl::read_excel("table/05-ausentes-en_consolidado-con_conglomerado_recuperado-n45.xlsx") %>% 
+  select(diris_2,codigo_del_tubo,conglomerado,
+         numero_vivienda,numero_hogar,accion_pendiente,vivienda_estatus,
+         consentimiento,numero_dni,
+         nombres_y_apellidos_del_participante,everything()) %>% 
+  # glimpse()
+  mutate(conglomerado=str_replace(conglomerado,"'","")) %>% 
+  filter(accion_pendiente!="digitado") %>% 
+  filter(accion_pendiente!="ya_en_base") %>% 
+  select(conglomerado,numero_vivienda,numero_dni,
+         #nombres_y_apellidos_del_participante,
+         everything()) %>% 
+  # filter(vivienda_estatus=="vacia")
+  # count(accion_pendiente)
+  select(-codigo_del_tubo,-diris_2,-accion_pendiente,-consentimiento,
+         -doc_identidad,-dni_2,-vivienda_estatus,
+         -nombres_y_apellidos_del_participante,
+         -(estatus_resultado:codigo_orden),
+         -(estado:diris)) %>% 
+  mutate(fecha_nacimiento=janitor::excel_numeric_to_date(as.numeric(fecha_nacimiento)),
+         fecha_nacimiento=as.character(fecha_nacimiento)) %>% 
+  rename(dni=numero_dni) %>% 
+  #motivo: determinacion en base a protocolo
+  mutate(
+    presente_prueba="si"#, # EXCLUSION!!!! 
+    # ig_clasificacion="negativo" # EXCLUSION!!!!
+  ) %>% 
+  left_join(diccionario_conglomerado %>% select(peru_dist=ubigeo,conglomerado)) %>% 
+  left_join(
+    hh_raw_data %>% 
+      select(conglomerado,numero_vivienda,`_index`)
+  ) %>% 
+  # avallecam::print_inf()
+  mutate(numero_hogar=as.character(numero_hogar),
+         `_index`=if_else(is.na(`_index`),as.double(conglomerado),`_index`)) #index eq conglomerado
+
+recovered_observations %>% 
+  naniar::miss_var_summary() %>%
+  avallecam::print_inf()
+# glimpse()
+
+recovered_observations %>%
+  avallecam::print_inf()
+
 # csv subject -------------------------------------------------------------
 
 pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>% 
@@ -124,14 +195,19 @@ pp_raw_data <- readxl::read_excel(file_name,sheet = 2) %>%
          nombres=if_else(is.na(nombres),"",nombres)
   ) %>% 
   mutate(nombre_completo=str_c(apellido_paterno," ",apellido_materno,", ",nombres),
-         nombre_completo=str_to_upper(nombre_completo))
-
-# pp_raw_data %>% #3202x175
-#   union_all(
-#     recovered_observations %>% #38x5
-#       select(-conglomerado,-numero_vivienda)
-#     ) %>% #3240x176
-#   glimpse()
+         nombre_completo=str_to_upper(nombre_completo)) %>% 
+  mutate(numero_hogar=str_replace(numero_hogar,",","")) %>% #3202x175
+  union_all(
+    recovered_observations %>% #38x6
+      rename(`_parent_index`=`_index`) %>% 
+      select(-conglomerado,-numero_vivienda,-peru_dist)
+    ) %>% #3240 x 175
+  rownames_to_column() %>% 
+  # en pp_ index son numeros consecutivos por numero de fila
+  mutate(`_index`=if_else(is.na(`_index`),as.double(rowname),`_index`)) %>% 
+  select(-rowname)
+  # filter(is.na(nombres)) %>% 
+  # glimpse()
 
 pp_raw_data %>% 
   # colnames()
@@ -144,6 +220,7 @@ pp_raw_data %>% glimpse()
 #   filter(str_detect(nombre_completo,"______")) %>%
 #   avallecam::print_inf()
 
+# crear base con números de registros ingresados (miembros) por vivienda y hogar
 registros_por_hh <- pp_raw_data %>% 
   select(`_parent_index`,`_index`,numero_hogar) %>% 
   # count(`_parent_index`,`_index`,numero_hogar) %>% 
@@ -154,62 +231,23 @@ registros_por_hh <- pp_raw_data %>%
 # mutate(participante=as.integer(participante),
 #        diferencia_E_O=n_registros-as.integer(participante))
 
-
-# csv household -----------------------------------------------------------
-
-hh_raw_data <- readxl::read_excel(file_name,sheet = 1) %>% 
-  mutate_at(.vars = vars(starts_with("peru_")),.funs = as.factor) #%>% 
-  # left_join(registros_por_hh,
-  #           by=c("_index"="_parent_index"))
+registros_por_hh %>% 
+  filter(`_parent_index`=="20787")
 
 hh_raw_data %>% 
-  write_csv(str_c("data/seroprev-hh-",my_timestap,".csv"))
+  select(conglomerado,numero_vivienda,`_index`) %>% 
+  inner_join(
+    recovered_observations %>% 
+      count(conglomerado,numero_vivienda,`_index`)
+  )
 
-hh_raw_data %>% glimpse()
-
-# xlsx recovered ----------------------------------------------------------
-
-#need to add
-recovered_observations <- 
-  readxl::read_excel("table/05-ausentes-en_consolidado-con_conglomerado_recuperado-n45.xlsx") %>% 
-  select(diris_2,codigo_del_tubo,conglomerado,
-         numero_vivienda,accion_pendiente,vivienda_estatus,
-         consentimiento,numero_dni,
-         nombres_y_apellidos_del_participante,everything()) %>% 
-  # glimpse()
-  mutate(conglomerado=str_replace(conglomerado,"'","")) %>% 
-  filter(accion_pendiente!="digitado") %>% 
-  filter(accion_pendiente!="ya_en_base") %>% 
-  select(conglomerado,numero_vivienda,numero_dni,
-         #nombres_y_apellidos_del_participante,
-         everything()) %>% 
-  # count(accion_pendiente)
-  select(-codigo_del_tubo,-diris_2,-accion_pendiente,-consentimiento,
-         -doc_identidad,-dni_2,-vivienda_estatus,
-         -nombres_y_apellidos_del_participante,
-         -(estatus_resultado:codigo_orden),
-         -(estado:diris)) %>% 
-  mutate(fecha_nacimiento=janitor::excel_numeric_to_date(as.numeric(fecha_nacimiento)),
-         fecha_nacimiento=as.character(fecha_nacimiento)) %>% 
-  rename(dni=numero_dni) %>% 
-  mutate(
-    presente_prueba="si", # EXCLUSION!!!! 
-    ig_clasificacion="negativo" # EXCLUSION!!!!
+hh_recovered_observations <- recovered_observations %>% 
+  count(conglomerado,numero_vivienda,numero_hogar,`_index`) %>% 
+  anti_join(
+    hh_raw_data %>% 
+      select(conglomerado,numero_vivienda,`_index`)
   ) %>% 
-  left_join(diccionario_conglomerado %>% select(peru_dist=ubigeo,conglomerado))
-# recovered_observations
-# naniar::miss_var_summary() %>%
-# avallecam::print_inf()
-# glimpse()
-
-# missings ----------------------------------------------------------------
-
-hh_raw_data %>% 
-  naniar::miss_var_summary() %>% 
-  avallecam::print_inf()
-
-# hh_raw_data %>% 
-#   filter(is.na(n_registros_pp))
+  rename(n_registros_vv=n)
 
 # _______________ ---------------------------------------------------------
 
@@ -234,11 +272,11 @@ issue_decide <- "2425"
 # __ creación ----------------------------------------------------------------
 
 
-vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar diferencia!
+vv_raw_data <- pp_raw_data %>% #3240
   # glimpse()
   # OJO: retiramos duplicado en jefe de vivienda
   # conservamos según criterio de edad y nivel educativo
-  filter(!(`_parent_index`==issue & `_index`==issue_decide)) %>% 
+  filter(!(`_parent_index`==issue & `_index`==issue_decide)) %>% #32309
   select(`_parent_index`,numero_hogar,
           tipo_vivienda,
          agua,
@@ -246,15 +284,21 @@ vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar dife
          electricidad,
          nro_dormitorios,
          nro_convivientes) %>% 
-  left_join(registros_por_hh %>% 
+  left_join(registros_por_hh %>% #1015
               rename(n_registros_vv=n_registros_pp)) %>% 
-  # select()
-  # naniar::miss_var_summary() %>% 
+  # ## usamos nro_convivientes como variable con menor 
+  # naniar::miss_var_summary() %>%
   # avallecam::print_inf()
-  group_by(`_parent_index`) %>% 
-  filter(!is.na(nro_convivientes)) %>% #menos cantidad de valores perdidos
+  # conservar solo la información de jefes de hogar
+  # retirar replicas con valores perdidos
+  # group_by(`_parent_index`) %>% #3201 -> 745 grupos
+  group_by(`_parent_index`,numero_hogar) %>% #3239 -> 1015 grupos
+  filter(!is.na(nro_convivientes)) %>% # 760
   ungroup() %>% 
-  distinct() %>% 
+  # group_by_all() %>% 
+  # filter(n()>1)
+  distinct() %>% # 755 (replicas de misma info de vivienda)
+  # naniar::miss_var_summary()
   #corregir valores perdidos con observado
   mutate(
     nro_dormitorios = as.numeric(nro_dormitorios),
@@ -264,9 +308,13 @@ vv_raw_data <- pp_raw_data %>% #HECHO: AGREGAR NÚMERO DE HOGAR y verificar dife
     nro_convivientes = as.numeric(nro_convivientes),
     nro_convivientes = if_else(condition = nro_convivientes==999,
                                true = as.double(n_registros_vv),
-                               false = nro_convivientes)) #%>% 
+                               false = nro_convivientes)) %>% 
   # filter(nro_convivientes==999) %>% 
   # filter(nro_dormitorios==999) %>% 
+  left_join(hh_raw_data %>% select(conglomerado,`_index`,numero_vivienda), #813 - conglomerado e index son equivalentes
+            by=c("_parent_index"="_index")) %>% 
+  union_all(hh_recovered_observations %>% 
+              rename(`_parent_index`=`_index`))
 
 # ver duplicados - NO
 # corregir en issue e issue_decide
@@ -277,7 +325,16 @@ vv_raw_data %>%
 # para recuperar valores perdidos por nro docrmitorios y nro convivientes
 # colocar personas entrevistadas por vivienda
 
-vv_raw_data %>% dim()
+vv_raw_data %>% dim() #755 
+vv_raw_data %>% count(`_parent_index`,numero_vivienda,sort = T) 
+#' 745 viviendas con información brindada por jefe de hogar completas
+#' 8 con dos hogares por vivienda
+#' 1 con tres hogares por vivienda
+vv_raw_data %>% naniar::miss_var_summary()
+
+# vv_raw_data %>% 
+#   union_all(hh_recovered_observations)
+#   # filter(`_parent_index`=="762")
 
 # pp_raw_data %>% glimpse()
 #   select(starts_with("material_"),starts_with("hogar"),starts_with("cocina"))
@@ -331,10 +388,15 @@ inner_join(hh_raw_data, #813
   #        -(id:`_uuid`),-`_validation_status`) %>% 
   # count(conglomerado,numero_vivienda)
 
-anti_join(hh_raw_data, #813
-          vv_raw_data, #756
-          by=c("_index"="_parent_index")) %>% 
-  avallecam::print_inf()
+# right_join(hh_raw_data, #813
+#           vv_raw_data, #756
+#           by=c("_index"="_parent_index")) %>% 
+#   avallecam::print_inf()
+
+# anti_join(hh_raw_data, #813
+#           vv_raw_data, #756
+#           by=c("_index"="_parent_index")) %>% 
+#   avallecam::print_inf()
 
 # hh_raw_data %>% 
 #   count(`_index`,sort = T)
@@ -351,10 +413,21 @@ anti_join(hh_raw_data, #813
 #' retorno ins resultado pm
 
 uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
-                         hh_raw_data, #816 x 26
-                         by=c("_parent_index"="_index")) %>% #3202 x 200 -> HECHO: ver si personas = 0 o son duplicados
+                                hh_raw_data, #816 x 26
+                                by=c("_parent_index"="_index")) %>% #3202 x 200 -> HECHO: ver si personas = 0 o son duplicados
   # join all recovered fron consolidado_pm x retorno_pm
-  union_all(recovered_observations) %>% #38x5 -> 3240 x 200
+  # union_all(recovered_observations) %>% #38x5 -> 3240 x 200
+  # recover numereo hogar
+  # arrange(conglomerado,`_parent_index`,numero_vivienda,numero_hogar) %>% 
+  # rellenar el número
+  # fill(numero_hogar,.direction ="down") %>% 
+  # select(conglomerado,`_parent_index`,numero_vivienda,numero_hogar) %>%
+  # # naniar::vis_miss()
+  # # naniar::miss_var_summary()
+  # # filter(is.na(numero_hogar)) %>%
+  # # count(conglomerado,numero_vivienda,numero_hogar) %>% 
+  # filter(conglomerado=="18910",numero_vivienda=="2") %>%
+  # avallecam::print_inf()
   # recover and fix age issue with missings
   # select(edad,fecha_nacimiento) %>%
   mutate(edad=as.numeric(edad)) %>% 
@@ -364,24 +437,38 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3202 X 175
                                      Sys.Date())/lubridate::years(1)) %>% floor(),
     edad==999~NA_real_,
     TRUE~edad)) %>% 
+  # skimr::skim(edad)
   # avallecam::print_inf()
   # unir info de vivienda por jefe de hogar
   select(#`_parent_index`,
-         -tipo_vivienda,
-         -agua,
-         -desague,
-         -electricidad,
-         -nro_dormitorios,
-         -nro_convivientes) %>% 
-  full_join(vv_raw_data) %>% #746 -> #conserva observaciones
+    -tipo_vivienda,
+    -agua,
+    -desague,
+    -electricidad,
+    -nro_dormitorios,
+    -nro_convivientes) %>% #3240 x 194
+  # filter(`_parent_index`=="2655502")
+  # count(`_parent_index`,numero_hogar) %>% count(`_parent_index`,sort = T) #812 parent_index
+  left_join(vv_raw_data %>% 
+              select(-conglomerado,-numero_vivienda)) %>% #755 x 11 -> 3240 x 201 #conserva observaciones
+  # filter(`_parent_index`=="2655502")
+  #verificar
+  # select(nro_dormitorios,nro_convivientes,participante,n_registros_vv) %>%
+  # # naniar::miss_var_summary()
+  # filter(is.na(nro_convivientes))
+  
   #recuperacion de datos de vivienda
-  # filter(nro_convivientes=="999") %>% 
-  # select(participante,nro_convivientes) %>% 
   mutate(nro_convivientes=case_when(
-    nro_convivientes==0 ~ as.numeric(participante),
-    is.na(nro_convivientes) ~ as.numeric(participante),
-    # nro_convivientes==0 ~ as.numeric(n_registros_vv),
-    TRUE~nro_convivientes)) %>%
+    is.na(participante) & is.na(nro_convivientes) ~ as.numeric(n_registros_vv),
+    !is.na(participante) & is.na(nro_convivientes) ~ as.numeric(participante),
+    TRUE~nro_convivientes)
+  ) %>%
+  # #verificar
+  # select(conglomerado,`_parent_index`,numero_vivienda,numero_hogar,
+  #        nro_dormitorios,nro_convivientes,participante,n_registros_vv,nombre_completo) %>%
+  # # naniar::miss_var_summary()
+  # filter(is.na(nro_convivientes)) # 1 %>% glimpse() ------> PLAN: REALIZAR UNION_ALL AL INICIO EN HH_ Y PP_
+  
   # fix ubigeo-inei
   mutate(peru_dist=as.character(peru_dist)) %>% 
   mutate(peru_dist=case_when(
@@ -631,8 +718,11 @@ uu_raw_data %>%
   # filter(is_in(conglomerado,si_vinculado$conglomerado)) %>% 
   select(nm_dist,cd_dist,conglomerado,numero_vivienda,
          #numero_hogar,
-         participante) %>% 
-  group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,participante) %>% 
+         participante,nro_convivientes,n_registros_vv) %>% 
+  naniar::miss_var_summary()
+  # group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,participante) %>% 
+  group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,
+           participante,nro_convivientes) %>% 
   summarise(n_registros=n()) %>% 
   ungroup() %>% 
   mutate(participante=as.integer(participante),
@@ -919,6 +1009,26 @@ uu_clean_data %>%
 uu_clean_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
 
+# MISSINGS subset ---------------------------------------------------------
+
+uu_clean_data %>% 
+  mutate(edad_miss=case_when(is.na(edad)~"miss",edad>100~"cien",TRUE~"not")) %>% 
+  # select(edad_miss,convResultado) %>% filter(edad_miss=="miss")
+  count(edad_miss,presente_prueba,igg,igm,ig_clasificacion,positividad_peru)
+
+uu_clean_data %>% 
+  mutate(edad_miss=case_when(is.na(edad)~"miss",edad>100~"cien",TRUE~"not")) %>% 
+  select(dni,nombre_completo,
+         edad_miss,convResultado,ig_clasificacion,positividad_peru) %>% 
+  filter(edad_miss=="not" & positividad_peru!="missing" & ig_clasificacion=="missing") %>% 
+  writexl::write_xlsx("table/08-20200719-missings-pcr_presente-pr_perdido-n38.xlsx")
+
+uu_clean_data %>% 
+  count(presente_prueba,igg,igm,ig_clasificacion,convResultado,positividad_peru)
+# select(igg,igm,ig_clasificacion,positividad_peru) %>% 
+# # naniar::miss_var_summary()
+# skimr::skim()
+
 # EDUCATION subset --------------------------------------------------------
 
 uu_clean_data %>% 
@@ -938,6 +1048,16 @@ uu_clean_data %>%
 
 
 # __ conglome | viviendas | sujetos ------------------------------------------
+
+uu_clean_data %>% 
+  filter(conglomerado=="20787") %>% 
+  count(numero_vivienda)
+
+uu_clean_data %>% 
+  select(cd_dist,conglomerado,numero_vivienda,numero_hogar,nro_convivientes,
+         nro_dormitorios,participante,n_registros_vv,ind_hacin) %>% 
+  # skimr::skim(ind_hacin)
+  naniar::miss_var_summary()
 
 # número total de viviendas 
 uu_clean_data %>% 

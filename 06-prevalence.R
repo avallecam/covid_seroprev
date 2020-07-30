@@ -40,19 +40,16 @@ outcome_to_numeric <- function(variable) {
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
+  # filter by age availability - clean estimations
   filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
+  # filter by PR availability - last data analysis requirement
   mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
-  filter(ig_clasificacion!="missing") %>% #count(ig_clasificacion)
+  filter(ig_clasificacion!="missing") %>% 
+  # factor format and new variants as numeric for raw prevalence
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
-  # mutate(igg=as.factor(igg),
-  #        igm=as.factor(igm),
-  #        ig_clasificacion=as.factor(ig_clasificacion),
-  #        positividad_peru=as.factor(positividad_peru)) %>% 
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = funs("num"=outcome_to_numeric)) #%>% count(igg,igg_num)
-  # mutate(ig_clasificacion_num=outcome_to_numeric(ig_clasificacion))
-  # pull(ig_clasificacion)
+            .funs = funs("num"=outcome_to_numeric)) 
 
 # QC exposure | outcomes! ---------------------------------------------------------------
 
@@ -164,6 +161,10 @@ uu_clean_data %>%
 
 # PROPORCION CRUDA --------------------------------------------------------
 
+# PENDIENTE: REPREX con cdcper dotwhiskes plot
+# usando .funs = funs("num"=outcome_to_numeric)
+# https://stackoverflow.com/questions/35953394/calculating-length-of-95-ci-using-dplyr
+
 library(moderndive)
 library(infer)
 library(gmodels)
@@ -172,6 +173,7 @@ raw_prop_table <- uu_clean_data %>%
   pivot_longer(cols = -rowname,names_to = "outcome",values_to = "value") %>% 
   group_by(outcome) %>% 
   summarise(
+    raw_obse=n(),
     raw_prop=ci.binom(value)[1],
     raw_lowc=ci.binom(value)[2],
     raw_uppc=ci.binom(value)[3]#,
