@@ -1089,7 +1089,12 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
                            ind_pobreza==1~"Pobre",
                            ind_pobreza>=1~"Pobre extremo"),
          pobreza_dico=case_when(ind_pobreza==0~"No pobre",
-                                ind_pobreza>=1~"Pobre"))
+                                ind_pobreza>=1~"Pobre")) %>% 
+  
+  # sympt + contact dates
+  # no genera nuevos missings
+  mutate_at(.vars = vars(fecha_last_contacto,fecha_inicio_sintomas,fecha_inicio_sintomas_previo),
+            .funs = lubridate::ymd)
 
 # uu_clean_data %>% count(totvivsel)
 
@@ -1109,6 +1114,9 @@ uu_clean_data <- uu_clean_data_pre %>% #3224
 
 uu_clean_data %>% 
   write_rds("data/uu_clean_data.rds")
+
+# read_rds("data/uu_clean_data.rds") %>%
+#   writexl::write_xlsx("data/uu_clean_data.xlsx")
 
 # __ reporte: flowchart --------------------------------------------------------------
 

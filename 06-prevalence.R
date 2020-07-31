@@ -13,9 +13,9 @@
 #' (x) proporcion cruda
 #' (x) ajustado por ponderacion poblacional
 #' (x) retirar cv (diferencias no analizables) pero da certeza de la inferencia
-#' (-) crear grafico solo de edades. tabla con valores puntuales generales y sexo
+#' (x) crear grafico solo de edades. tabla con valores puntuales generales y sexo
 #' (x) mapa con dos capas de label diris
-#' ( ) ajustado por test performance: (sens 0.9694 | spec 0.9574)
+#' (x) ajustado por test performance: (sens 0.9694 | spec 0.9574)
 #' ( ) reproduce gelman adjustment approach!
 
 
@@ -40,12 +40,6 @@ outcome_to_numeric <- function(variable) {
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
-  # # filter by PR availability - last data analysis requirement
-  # mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
-  # filter(ig_clasificacion!="missing") %>% 
-  # # filter by age availability - clean estimations
-  # filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
-  # # factor format and new variants as numeric for raw prevalence
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
@@ -159,19 +153,20 @@ uu_clean_data %>%
   avallecam::print_inf()
 
 
-# descripción poblacional -------------------------------------------------
+# __ descripción poblacional -------------------------------------------------
 
 
 uu_clean_data %>%
-  # select(edad,ig_clasificacion) %>%
-  # mutate(edad=as.numeric(edad)) %>%
-  # naniar::miss_var_summary()
-  # cdcper::cdc_edades_peru(edad) %>%
-  filter(ig_clasificacion!="missing") %>%
   compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
                                chisq.test.perm = TRUE,byrow = T) %>%
   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
   compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+
+uu_clean_data %>%
+  compareGroups::compareGroups(positividad_peru~.,data = .,max.xlev = 20,
+                               chisq.test.perm = TRUE,byrow = T) %>%
+  compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
+  compareGroups::export2xls("table/01-compareGroups-output-02.xls")
 
 # ________ ----------------------------------------------------------------
 
@@ -377,6 +372,23 @@ out0108 <- design %>%
 
 out0108
 
+# 04_espacio: provincia ---------------------------------------------------------------
+
+out0109 <- design %>%
+  group_by(nm_prov,ig_clasificacion) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(vartype = c("ci","cv")),
+            n = unweighted(n())
+  ) %>% 
+  group_by(nm_prov) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(ig_clasificacion=="positivo")
+
+out0109 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
+
 
 # ___________ -------------------------------------------------------------
 
@@ -543,6 +555,22 @@ out0208 <- design %>%
 
 out0208
 
+# 04_espacio: provincia ---------------------------------------------------------------
+
+out0209 <- design %>%
+  group_by(nm_prov,igg) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(vartype = c("ci","cv")),
+            n = unweighted(n())
+  ) %>% 
+  group_by(nm_prov) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igg=="positivo")
+
+out0209 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
 
 
@@ -712,6 +740,22 @@ out0308 <- design %>%
 
 out0308
 
+# 04_espacio: provincia ---------------------------------------------------------------
+
+out0309 <- design %>%
+  group_by(nm_prov,igm) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(vartype = c("ci","cv")),
+            n = unweighted(n())
+  ) %>% 
+  group_by(nm_prov) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(igm=="positivo")
+
+out0309 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
 
 
@@ -882,6 +926,23 @@ out0408 <- design %>%
 
 out0408
 
+# 04_espacio: provincia ---------------------------------------------------------------
+
+out0409 <- design %>%
+  group_by(nm_prov,positividad_peru) %>% #group_by
+  summarize(proportion = survey_mean(vartype = c("ci","cv")),
+            total = survey_total(vartype = c("ci","cv")),
+            n = unweighted(n())
+  ) %>% 
+  group_by(nm_prov) %>% #group_by
+  mutate(p = prop.table(n),
+         t = sum(n),
+         sum_total = sum(total)) %>% 
+  ungroup() %>% 
+  filter(positividad_peru=="positivo")
+
+out0409 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
+
 
 # __________ --------------------------------------------------------------
 
@@ -921,6 +982,7 @@ outcome_01 <- out0101 %>%
   union_all(out0106 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0107 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0108 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0109 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_02 <- out0201 %>% 
@@ -929,6 +991,7 @@ outcome_02 <- out0201 %>%
   union_all(out0206 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0207 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0208 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0209 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_03 <- out0301 %>% 
@@ -937,6 +1000,7 @@ outcome_03 <- out0301 %>%
   union_all(out0306 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0307 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0308 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0309 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_04 <- out0401 %>% 
@@ -945,6 +1009,7 @@ outcome_04 <- out0401 %>%
   union_all(out0406 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0407 %>% tidy_srvyr_tibble()) %>% 
   union_all(out0408 %>% tidy_srvyr_tibble()) %>% 
+  union_all(out0409 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 
