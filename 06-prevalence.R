@@ -40,18 +40,31 @@ outcome_to_numeric <- function(variable) {
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
-  # filter by age availability - clean estimations
-  filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
-  # filter by PR availability - last data analysis requirement
-  mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
-  filter(ig_clasificacion!="missing") %>% 
-  # factor format and new variants as numeric for raw prevalence
+  # # filter by PR availability - last data analysis requirement
+  # mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
+  # filter(ig_clasificacion!="missing") %>% 
+  # # filter by age availability - clean estimations
+  # filter(edad_decenios!="[100,Inf]") %>% #perdida importante de casos, PENDIENTE: recuperar edades
+  # # factor format and new variants as numeric for raw prevalence
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = funs("num"=outcome_to_numeric)) 
+            .funs = list("num"=outcome_to_numeric)) 
 
 # QC exposure | outcomes! ---------------------------------------------------------------
+
+read_rds("data/uu_clean_data.rds") %>% 
+  select(edad,sexo) %>% 
+  naniar::miss_var_summary()
+
+read_rds("data/uu_clean_data.rds") %>% 
+  count(ig_clasificacion,convResultado,positividad_peru) %>% 
+  avallecam::print_inf()
+  
+# uu_clean_data %>%
+#   count(cd_dist,conglomerado,numero_vivienda,#numero_hogar,
+#         participante,nro_convivientes,n_registros_vv) %>% 
+#   naniar::miss_var_summary()
 
 # pobreza hacinamiento
 uu_clean_data %>% 
@@ -138,23 +151,27 @@ uu_clean_data %>% pull(ig_clasificacion) %>% levels()
 # DESCRIPTIVO -------------------------------------------------------------
 
 
-# descripción poblacional -------------------------------------------------
 
+# __ valores perdidos -----------------------------------------------------
 
 uu_clean_data %>% 
   naniar::miss_var_summary() %>% 
   avallecam::print_inf()
 
-# uu_clean_data %>%
-#   # select(edad,ig_clasificacion) %>%
-#   # mutate(edad=as.numeric(edad)) %>%
-#   # naniar::miss_var_summary()
-#   # cdcper::cdc_edades_peru(edad) %>%
-#   filter(ig_clasificacion!="missing") %>% 
-#   compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
-#                                chisq.test.perm = TRUE,byrow = T) %>%
-#   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>% 
-#   compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+
+# descripción poblacional -------------------------------------------------
+
+
+uu_clean_data %>%
+  # select(edad,ig_clasificacion) %>%
+  # mutate(edad=as.numeric(edad)) %>%
+  # naniar::miss_var_summary()
+  # cdcper::cdc_edades_peru(edad) %>%
+  filter(ig_clasificacion!="missing") %>%
+  compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
+                               chisq.test.perm = TRUE,byrow = T) %>%
+  compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
+  compareGroups::export2xls("table/01-compareGroups-output-01.xls")
 
 # ________ ----------------------------------------------------------------
 
@@ -232,7 +249,6 @@ out0101 <- design %>%
   filter(ig_clasificacion=="positivo") 
 
 out0101 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
-
 
 # 02_sexo ----------------------------------------------------------------
 
@@ -1222,7 +1238,7 @@ figura00_adj_loc <- figura00_adj %>%
   cdc_srvyr_create_table_free(estim_var = numeric.mean,
                               cilow_var = numeric.p05,
                               ciupp_var = numeric.p95,
-                              estim_digits = 3,
+                              estim_digits = 4,
                               cilow_digits = 3,
                               ciupp_digits = 3) %>%
   # glimpse()
