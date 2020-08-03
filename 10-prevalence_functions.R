@@ -8,10 +8,10 @@ tidy_srvyr_tibble <- function(data) {
               .funs = str_replace,"(.+)","category")
 }
 
-cdc_srvyr_tibble_02 <- function(data) {
+cdc_srvyr_tibble_02 <- function(data,colname_number=1) {
   data %>% 
-    mutate(covariate=if_else(is.na(covariate),colnames(.)[1],covariate)) %>% 
-    mutate(outcome=colnames(.)[1]) %>% 
+    mutate(covariate=if_else(is.na(covariate),colnames(.)[colname_number],covariate)) %>% 
+    mutate(outcome=colnames(.)[colname_number]) %>% 
     mutate(category=if_else(is.na(category),"overall",category)) %>% 
     select_if(.predicate = negate(is.factor)) %>% 
     select(covariate,category,outcome,everything())
@@ -79,3 +79,61 @@ ggplot_prevalence <- function(data) {
     # scale_size_continuous(labels = scales::percent_format()) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 }
+
+
+cdc_srvyr_prevalence_outcome <- function(design,outcome) {
+  design %>%
+    # filter(!is.na({{covariate}})) %>% 
+    # group_by({{covariate}},{{outcome}}) %>% #group_by
+    group_by({{outcome}}) %>% #group_by
+    summarize(proportion = survey_mean(vartype = c("ci","cv")),
+              total = survey_total(vartype = c("ci","cv")),
+              n = unweighted(n())
+    ) %>% 
+    # group_by({{covariate}}) %>% #group_by
+    mutate(p = prop.table(n),
+           t = sum(n),
+           sum_total = sum(total)) %>% 
+    ungroup() %>% 
+    filter({{outcome}}=="positivo")
+}
+
+
+cdc_srvyr_prevalence_one_covariate <- function(design,covariate,outcome) {
+  design %>%
+    filter(!is.na({{covariate}})) %>% 
+    group_by({{covariate}},{{outcome}}) %>% #group_by
+    summarize(proportion = survey_mean(vartype = c("ci","cv")),
+              total = survey_total(vartype = c("ci","cv")),
+              n = unweighted(n())
+    ) %>% 
+    group_by({{covariate}}) %>% #group_by
+    mutate(p = prop.table(n),
+           t = sum(n),
+           sum_total = sum(total)) %>% 
+    ungroup() %>% 
+    filter({{outcome}}=="positivo")
+}
+
+outcome_to_numeric <- function(variable) {
+  as.numeric({{variable}})-1
+}
+
+riesgo_extend_na <- function(variable,referencia) {
+  case_when(
+    {{referencia}}=="no"~"0",
+    TRUE~{{variable}})
+}
+
+# # reference
+# uu_clean_data %>% 
+#   select(riesgo,condicion_riesgo_diabetes) %>% 
+#   count(riesgo,condicion_riesgo_diabetes)
+# 
+# # example
+# uu_clean_data %>% 
+#   select(riesgo,condicion_riesgo_diabetes) %>% 
+#   # riesgo_extend(variable = condicion_riesgo_diabetes) %>% 
+#   mutate(condicion_riesgo_diabetes=riesgo_extend_na(variable = condicion_riesgo_diabetes,
+#                                                     referencia = riesgo)) %>% 
+#   count(riesgo,condicion_riesgo_diabetes)

@@ -33,17 +33,22 @@ source("10-prevalence_functions.R")
 
 source("08-uncertainty_prev.R")
 
-outcome_to_numeric <- function(variable) {
-  as.numeric({{variable}})-1
-}
 
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
+  # transformar a factor (prevlaencia ajustada)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
+  # transformar a numerico (prevalencia cruda)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = list("num"=outcome_to_numeric)) 
+            .funs = list("num"=outcome_to_numeric)) %>% 
+  # extender respuestas por condicicion de riesgo
+  mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
+            .funs = list("ext"=~riesgo_extend_na(variable = .x,referencia = riesgo))) #%>% 
+  # # de ord a fct
+  # mutate(edad_decenios=as.character(edad_decenios),
+  #        edad_decenios=as.factor(edad_decenios))
 
 # QC exposure | outcomes! ---------------------------------------------------------------
 
@@ -201,6 +206,29 @@ raw_prop_table <- uu_clean_data %>%
 
 raw_prop_table
 
+# ___________ -------------------------------------------------------------
+
+
+# SELECT COVARIATES -------------------------------------------------------
+
+covariate_list <- uu_clean_data %>% 
+  select(sexo,
+         edad_etapas_de_vida_t,
+         # edad_decenios,
+         # edad_quinquenal,
+         diris,
+         pobreza_dico,
+         hacinamiento,
+         nm_prov,
+         sintomas_cualquier_momento_cat,
+         riesgo,
+         ends_with("_ext"),
+         -contains("ninguna"),
+         -contains("otro"),
+         -contains("salud"),
+         -contains("renal"),
+         -contains("60a")) %>% 
+  colnames()
 # ____________ ------------------------------------------------------------
 
 # SEROPREVALENCIA ---------------------------------------------------------
@@ -213,9 +241,6 @@ uu_clean_data %>% count(CONGLOMERADO,VIVIENDA)
 # diseño muestral de la encuesta ---------------------------------
 
 design <- uu_clean_data %>% 
-  # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
-  
-  # as_factor() %>% #importar variable+value labels
   
   filter(!is.na(ig_clasificacion)) %>% #CRITICAL! ON OUTCOME
   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
@@ -232,163 +257,53 @@ design <- uu_clean_data %>%
 
 # 01_general ----------------------------------------------------------------
 
-out0101 <- design %>%
-  group_by(ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  filter(ig_clasificacion=="positivo") 
+out0101 <- cdc_srvyr_prevalence_outcome(design = design,
+                                        outcome = ig_clasificacion)
+out0101
 
-out0101 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
+# 02_espacial: diris ----------------------------------------------------------------
 
-# 02_sexo ----------------------------------------------------------------
-
-out0102 <- design %>%
-  group_by(sexo,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(sexo) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo") 
-
-out0102 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
-
-
-# 03_edad: etapas ----------------------------------------------------------------
-
-out0103 <- design %>%
-  group_by(edad_etapas_de_vida_t,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(edad_etapas_de_vida_t) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo") 
-
-out0103 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
-
+out0106 <- cdc_srvyr_prevalence_one_covariate(design = design,
+                                              covariate = diris,
+                                              outcome = ig_clasificacion)
+out0106
 
 # 03_edad: decenio ----------------------------------------------------------------
 
-out0104 <- design %>%
-  group_by(edad_decenios,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+out0104 <- cdc_srvyr_prevalence_one_covariate(design = design,
+                                              covariate = edad_decenios,
+                                              outcome = ig_clasificacion)
+out0104
+
+# 03_edad: quinquenio ----------------------------------------------------------------#
+
+# out0105 <- cdc_srvyr_prevalence_one_covariate(design = design,
+#                                               covariate = edad_quinquenal,
+#                                               outcome = ig_clasificacion)
+# out0105
+
+
+# 04_covariates ---------------------------------------------------------------
+
+outcome_01_pre <- 
+  # crear matriz
+  tibble(
+    design=list(design),
+    covariate=covariate_list,
+    outcome="ig_clasificacion"
   ) %>% 
-  group_by(edad_decenios) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo") 
-
-out0104 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
-
-# 03_edad: quinquenio ----------------------------------------------------------------
-
-out0105 <- design %>%
-  group_by(edad_quinquenal,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>%
-  group_by(edad_quinquenal) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>%
-  ungroup() %>%
-  filter(ig_clasificacion=="positivo")
-
-out0105 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
-
-
-
-# 04_espacio: diris ---------------------------------------------------------------
-
-out0106 <- design %>%
-  group_by(diris,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+  # crear simbolos
+  mutate(
+    covariate=map(covariate,dplyr::sym),
+    outcome=map(outcome,dplyr::sym)
   ) %>% 
-  group_by(diris) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo")
-
-out0106 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
-
-
-# 05_covar: pobreza -------------------------------------------------------
-
-
-out0107 <- design %>%
-  group_by(pobreza_dico,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(pobreza_dico) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo")
-
-out0107
-
-# 05_covar: hacinamiento -------------------------------------------------------
-
-
-out0108 <- design %>%
-  filter(!is.na(hacinamiento)) %>% 
-  group_by(hacinamiento,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(hacinamiento) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo")
-
-out0108
-
-# 04_espacio: provincia ---------------------------------------------------------------
-
-out0109 <- design %>%
-  group_by(nm_prov,ig_clasificacion) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(nm_prov) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(ig_clasificacion=="positivo")
-
-out0109 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
-
+  # estimar prevalencia
+  mutate(output=pmap(.l = select(.,design,covariate,outcome),
+                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+  select(-design,-covariate,-outcome) %>% 
+  unnest(cols = c(output)) #%>% 
+# cdc_srvyr_tibble_02(colname_number = 3)
 
 # ___________ -------------------------------------------------------------
 
@@ -416,161 +331,53 @@ design_02 <- uu_clean_data %>%
 
 # 01_general ----------------------------------------------------------------
 
-out0201 <- design_02 %>%
-  group_by(igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  filter(igg=="positivo") 
+out0201 <- cdc_srvyr_prevalence_outcome(design = design_02,
+                                        outcome = igg)
+out0201
 
-out0201 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
+# 02_espacial: diris ----------------------------------------------------------------
 
-# 02_sexo ----------------------------------------------------------------
-
-out0202 <- design_02 %>%
-  group_by(sexo,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(sexo) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo") 
-
-out0202 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
-
-
-# 03_edad: etapas ----------------------------------------------------------------
-
-out0203 <- design_02 %>%
-  group_by(edad_etapas_de_vida_t,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(edad_etapas_de_vida_t) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo") 
-
-out0203 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
-
+out0206 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+                                              covariate = diris,
+                                              outcome = igg)
+out0206
 
 # 03_edad: decenio ----------------------------------------------------------------
 
-out0204 <- design_02 %>%
-  group_by(edad_decenios,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+out0204 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+                                              covariate = edad_decenios,
+                                              outcome = igg)
+out0204 
+
+# 03_edad: quinquenio ----------------------------------------------------------------#
+
+# out0205 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+#                                               covariate = edad_quinquenal,
+#                                               outcome = igg)
+# out0205 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
+
+
+# 04_covariates ---------------------------------------------------------------
+
+outcome_02_pre <- 
+  # crear matriz
+  tibble(
+    design=list(design_02),
+    covariate=covariate_list,
+    outcome="igg"
   ) %>% 
-  group_by(edad_decenios) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo") 
-
-out0204 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
-
-# 03_edad: quinquenio ----------------------------------------------------------------
-
-out0205 <- design_02 %>%
-  group_by(edad_quinquenal,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+  # crear simbolos
+  mutate(
+    covariate=map(covariate,dplyr::sym),
+    outcome=map(outcome,dplyr::sym)
   ) %>% 
-  group_by(edad_quinquenal) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo")
-
-out0205 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
-
-
-
-# 04_espacio: diris ---------------------------------------------------------------
-
-out0206 <- design_02 %>%
-  group_by(diris,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(diris) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo")
-
-out0206 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
-
-# 05_covar: pobreza -------------------------------------------------------
-
-
-out0207 <- design %>%
-  group_by(pobreza_dico,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(pobreza_dico) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo")
-
-out0207
-
-# 05_covar: hacinamiento -------------------------------------------------------
-
-
-out0208 <- design %>%
-  filter(!is.na(hacinamiento)) %>% 
-  group_by(hacinamiento,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(hacinamiento) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo")
-
-out0208
-
-# 04_espacio: provincia ---------------------------------------------------------------
-
-out0209 <- design %>%
-  group_by(nm_prov,igg) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(nm_prov) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igg=="positivo")
-
-out0209 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
+  # estimar prevalencia
+  mutate(output=pmap(.l = select(.,design,covariate,outcome),
+                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+  select(-design,-covariate,-outcome) %>% 
+  unnest(cols = c(output)) #%>% 
+# cdc_srvyr_tibble_02(colname_number = 3)
 
 
 
@@ -600,162 +407,54 @@ design_03 <- uu_clean_data %>%
 
 # 01_general ----------------------------------------------------------------
 
-out0301 <- design_03 %>%
-  group_by(igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  filter(igm=="positivo") 
+out0301 <- cdc_srvyr_prevalence_outcome(design = design_03,
+                                        outcome = igm)
+out0301
 
-out0301 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
+# 02_espacial: diris ----------------------------------------------------------------
 
-# 02_sexo ----------------------------------------------------------------
-
-out0302 <- design_03 %>%
-  group_by(sexo,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(sexo) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo") 
-
-out0302 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
-
-
-# 03_edad: etapas ----------------------------------------------------------------
-
-out0303 <- design_03 %>%
-  group_by(edad_etapas_de_vida_t,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(edad_etapas_de_vida_t) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo") 
-
-out0303 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
+out0306 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+                                              covariate = diris,
+                                              outcome = igm)
+out0306
 
 
 # 03_edad: decenio ----------------------------------------------------------------
 
-out0304 <- design_03 %>%
-  group_by(edad_decenios,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+out0304 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+                                              covariate = edad_decenios,
+                                              outcome = igm)
+out0304 
+
+# 03_edad: quinquenio ----------------------------------------------------------------#
+
+# out0305 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+#                                               covariate = edad_quinquenal,
+#                                               outcome = igm)
+# out0305
+
+
+# 04_covariates ---------------------------------------------------------------
+
+outcome_03_pre <- 
+  # crear matriz
+  tibble(
+    design=list(design_03),
+    covariate=covariate_list,
+    outcome="igm"
   ) %>% 
-  group_by(edad_decenios) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo") 
-
-out0304 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
-
-# 03_edad: quinquenio ----------------------------------------------------------------
-
-out0305 <- design_03 %>%
-  group_by(edad_quinquenal,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+  # crear simbolos
+  mutate(
+    covariate=map(covariate,dplyr::sym),
+    outcome=map(outcome,dplyr::sym)
   ) %>% 
-  group_by(edad_quinquenal) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo")
-
-out0305 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
-
-
-
-# 04_espacio: diris ---------------------------------------------------------------
-
-out0306 <- design_03 %>%
-  group_by(diris,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(diris) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo")
-
-out0306 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
-
-
-# 05_covar: pobreza -------------------------------------------------------
-
-
-out0307 <- design %>%
-  group_by(pobreza_dico,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(pobreza_dico) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo")
-
-out0307
-
-# 05_covar: hacinamiento -------------------------------------------------------
-
-
-out0308 <- design %>%
-  filter(!is.na(hacinamiento)) %>% 
-  group_by(hacinamiento,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(hacinamiento) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo")
-
-out0308
-
-# 04_espacio: provincia ---------------------------------------------------------------
-
-out0309 <- design %>%
-  group_by(nm_prov,igm) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(nm_prov) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(igm=="positivo")
-
-out0309 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
+  # estimar prevalencia
+  mutate(output=pmap(.l = select(.,design,covariate,outcome),
+                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+  select(-design,-covariate,-outcome) %>% 
+  unnest(cols = c(output)) #%>% 
+# cdc_srvyr_tibble_02(colname_number = 3)
 
 
 
@@ -782,166 +481,57 @@ design_04 <- uu_clean_data %>%
 
 # tablas de prevalencia ------
 
-
 # 01_general ----------------------------------------------------------------
 
-out0401 <- design_04 %>%
-  group_by(positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo") 
+out0401 <- cdc_srvyr_prevalence_outcome(design = design_04,
+                                        outcome = positividad_peru)
+out0401
 
-out0401 #%>% write_xlsx("table/tab01-sarscov2-general.xlsx")
+# 02_espacial: diris ----------------------------------------------------------------
 
-# 02_sexo ----------------------------------------------------------------
-
-out0402 <- design_04 %>%
-  group_by(sexo,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(sexo) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo") 
-
-out0402 #%>% write_xlsx("table/tab02-sarscov2-sexo.xlsx")
-
-
-# 03_edad: etapas ----------------------------------------------------------------
-
-out0403 <- design_04 %>%
-  group_by(edad_etapas_de_vida_t,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(edad_etapas_de_vida_t) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo") 
-
-out0403 #%>% write_xlsx("table/tab03-sarscov2-edad_etapas_vida-5c.xlsx")
-
+out0406 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+                                              covariate = diris,
+                                              outcome = positividad_peru)
+out0406
 
 # 03_edad: decenio ----------------------------------------------------------------
 
-out0404 <- design_04 %>%
-  group_by(edad_decenios,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+out0404 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+                                              covariate = edad_decenios,
+                                              outcome = positividad_peru)
+out0404 
+
+# 03_edad: quinquenio ----------------------------------------------------------------#
+
+# out0405 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+#                                               covariate = edad_quinquenal,
+#                                               outcome = positividad_peru)
+# out0405
+
+
+# 04_covariates ---------------------------------------------------------------
+
+outcome_04_pre <- 
+  # crear matriz
+  tibble(
+    design=list(design_04),
+    covariate=covariate_list,
+    outcome="positividad_peru"
   ) %>% 
-  group_by(edad_decenios) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo") 
-
-out0404 #%>% write_xlsx("table/tab04-sarscov2-edad_decenios-10c.xlsx")
-
-# 03_edad: quinquenio ----------------------------------------------------------------
-
-out0405 <- design_04 %>%
-  group_by(edad_quinquenal,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
+  # crear simbolos
+  mutate(
+    covariate=map(covariate,dplyr::sym),
+    outcome=map(outcome,dplyr::sym)
   ) %>% 
-  group_by(edad_quinquenal) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo")
-
-out0405 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
-
+  # estimar prevalencia
+  mutate(output=pmap(.l = select(.,design,covariate,outcome),
+                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+  select(-design,-covariate,-outcome) %>% 
+  unnest(cols = c(output)) #%>% 
+# cdc_srvyr_tibble_02(colname_number = 3)
 
 
-# 04_espacio: diris ---------------------------------------------------------------
-
-out0406 <- design_04 %>%
-  group_by(diris,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(diris) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo")
-
-out0406 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
-
-
-# 05_covar: pobreza -------------------------------------------------------
-
-
-out0407 <- design %>%
-  group_by(pobreza_dico,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(pobreza_dico) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo")
-
-out0407
-
-# 05_covar: hacinamiento -------------------------------------------------------
-
-
-out0408 <- design %>%
-  filter(!is.na(hacinamiento)) %>% 
-  group_by(hacinamiento,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(hacinamiento) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo")
-
-out0408
-
-# 04_espacio: provincia ---------------------------------------------------------------
-
-out0409 <- design %>%
-  group_by(nm_prov,positividad_peru) %>% #group_by
-  summarize(proportion = survey_mean(vartype = c("ci","cv")),
-            total = survey_total(vartype = c("ci","cv")),
-            n = unweighted(n())
-  ) %>% 
-  group_by(nm_prov) %>% #group_by
-  mutate(p = prop.table(n),
-         t = sum(n),
-         sum_total = sum(total)) %>% 
-  ungroup() %>% 
-  filter(positividad_peru=="positivo")
-
-out0409 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
 
 # __________ --------------------------------------------------------------
@@ -977,39 +567,47 @@ out0409 #%>% write_xlsx("table/tab06-sarscov2-diris.xlsx")
 
 
 outcome_01 <- out0101 %>% 
-  union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0103 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0106 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0107 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0108 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0109 %>% tidy_srvyr_tibble()) %>% 
+  union_all(outcome_01_pre) %>% 
+  # union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0103 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0106 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0107 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0108 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0109 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0110 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_02 <- out0201 %>% 
-  union_all(out0202 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0203 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0206 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0207 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0208 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0209 %>% tidy_srvyr_tibble()) %>% 
+  union_all(outcome_02_pre) %>% 
+  # union_all(out0202 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0203 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0206 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0207 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0208 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0209 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0210 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_03 <- out0301 %>% 
-  union_all(out0302 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0303 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0306 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0307 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0308 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0309 %>% tidy_srvyr_tibble()) %>% 
+  union_all(outcome_03_pre) %>% 
+  # union_all(out0302 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0303 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0306 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0307 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0308 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0309 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0310 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 outcome_04 <- out0401 %>% 
-  union_all(out0402 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0403 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0406 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0407 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0408 %>% tidy_srvyr_tibble()) %>% 
-  union_all(out0409 %>% tidy_srvyr_tibble()) %>% 
+  union_all(outcome_04_pre) %>% 
+  # union_all(out0402 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0403 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0406 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0407 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0408 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0409 %>% tidy_srvyr_tibble()) %>% 
+  # union_all(out0410 %>% tidy_srvyr_tibble()) %>% 
   cdc_srvyr_tibble_02()
 
 
@@ -1067,7 +665,7 @@ figura01 %>%
        y = "Prevalencia",x = "",
        color = "Prueba"#,size = "CV%"
   )
-ggsave("figure/33-seroprev-figure01.png",height = 7,width = 7,dpi = "retina")
+ggsave("figure/33-seroprev-figure01.png",height = 14,width = 7,dpi = "retina")
 
 figura01 %>% write_rds("data/33-seroprev-figure01.rds")
 
@@ -1126,7 +724,6 @@ library(ggspatial)
 shapes_diris <- read_rds("data/per4-shp_distritos_janitor_diris.rds") %>% 
   st_as_sf(crs = 4610, agr = "constant") %>% 
   count(diris) 
-
 
 figura03 <- out0106 %>% 
   tidy_srvyr_tibble() %>% 
