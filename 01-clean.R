@@ -1096,26 +1096,34 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
             .funs = janitor::make_clean_names) %>% 
   
   # sintomas actuales
+  
+  #' suma horizontal total de sintomas
   mutate_at(.vars = vars(sintomas_fiebre:sintomas_anosmia),
             .funs = as.numeric) %>% 
   mutate(sintomas_actual_total = pmap(select(.,
                                              sintomas_fiebre:sintomas_anosmia),
                                       sum,na.rm=T)) %>%
   unnest(cols = c(sintomas_actual_total)) %>%
+  
+  #' aplicar definicion de oligosintomatico
   mutate(sintomas_actual_oligo=if_else(
     condition = sintomas_actual_total==1 & sintomas_anosmia==0,
     true = "si",
     false = "no"
   )) %>% 
+  # aplicar definicion de sintomatico covid
   mutate(sintomas_actual_covid=case_when(
     sintomas_actual_total>=2 | sintomas_anosmia==1 ~ "si",
     TRUE~"no"
   )) %>% 
+  #' aplicar consistencia de registros [ VER SI HAY REGISTRO QUE SE PIERDEN ]
   mutate(
     sintomas_actual_covid=if_else(is.na(sintomas_si_no),NA_character_,sintomas_actual_covid),
     sintomas_actual_oligo=if_else(is.na(sintomas_si_no),NA_character_,sintomas_actual_oligo)
   ) %>% 
   
+  #' aplciar mismo protocolo para el reporte del otro grupo de sintomas
+  #' 
   # sintomas previos | anterior
   mutate_at(.vars = vars(sintomas_anterior_fiebre:sintomas_anterior_anosmia),
             .funs = as.numeric) %>% 
@@ -1137,9 +1145,10 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     sintomas_anterior_oligo=if_else(is.na(sintomas_previos),NA_character_,sintomas_anterior_oligo)
   ) %>% 
   
-  # filter(sintomas_anterior_total==0,sintomas_previos=="si") %>% #dim()
+  # filter(sintomas_anterior_total==0,sintomas_previos=="si") %>% #dim() # 1 obs
   # select(observacion_sintomas) # missing
   # # corregir valor incoherente
+  #' 01 observación no reportó síntomas pero sí fecha. acción: fecha se cambió a valor perdido.
   mutate(sintomas_previos=if_else(sintomas_anterior_total==0 & sintomas_previos=="si",
                                   "no",
                                   sintomas_previos),
@@ -1169,11 +1178,24 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   # sintomas actual
   # si fecha prueba is NA then last enrolment day
   # si fecha sintomas in NA then fecha prueba is day
+  #' 
+  #' si la observación tiene registro de síntomas, 
+  #' valor perdido en fecha de inicio y valor perdido en fecha de prueba, 
+  #' se reemplazó por el último día de muestreo (10 de julio)
+  #' 
+  #' si respondieron que actualmente sí tenían síntomas y no hubo fecha registrada, 
+  #' la reemplazaba con la fecha de la prueba actual (fecha en la que se tomó prueba)
+  #' 
   mutate(fecha_prueba_actual=if_else(sintomas_si_no=="si" & is.na(fecha_prueba),
                                      lubridate::ymd(20200710),fecha_prueba),
          fecha_inicio_sintomas=if_else(sintomas_si_no=="si" & is.na(fecha_inicio_sintomas),
                                        fecha_prueba_actual,fecha_inicio_sintomas)) %>% 
   # naniar::miss_var_summary()
+  #' 
+  #' el tiempo de los síntomas se calculó 
+  #' al restar la fecha de prueba corregida con 
+  #' la fecha de inicio de sintomas corregida
+  #' 
   mutate(fecha_prueba_inicio_sintomas_diff=fecha_prueba_actual-fecha_inicio_sintomas) %>%
   mutate(fecha_prueba_inicio_sintomas_diff_cat=case_when(
     fecha_prueba_inicio_sintomas_diff<=14~"[00-14]d",
@@ -1231,6 +1253,12 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     sintomas_cualquier_momento_cat=coalesce(sintomas_anterior_cat,sintomas_actual_cat),
     fecha_prueba_inicio_sintomas_cualquier_momento_cat=coalesce(fecha_prueba_inicio_sintomas_previo_diff_cat,fecha_prueba_inicio_sintomas_diff_cat)
   ) %>% 
+  # cualquier momento dentro de los 14 dias
+  mutate(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=case_when(
+    is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat)~NA_character_,
+    fecha_prueba_inicio_sintomas_cualquier_momento_cat=="[00-14]d"~"si",
+    fecha_prueba_inicio_sintomas_cualquier_momento_cat!="[00-14]d"~"no"
+  )) %>% 
   
   # condiciones de riesgo
   rename_at(.vars = vars(contains("riesgo")),
@@ -1408,7 +1436,12 @@ uu_clean_data %>%
         fecha_inicio_sintomas_previo_14d,
         fecha_inicio_sintomas_previo_60d)
 
-
+uu_clean_data %>% 
+  count(sintomas_si_no,sintomas_previos,
+        sintomas_cualquier_momento,
+        sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
 
 
 # MISSINGS subset ---------------------------------------------------------
