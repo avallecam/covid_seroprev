@@ -115,6 +115,23 @@ cdc_srvyr_prevalence_one_covariate <- function(design,covariate,outcome) {
     filter({{outcome}}=="positivo")
 }
 
+cdc_srvyr_prevalence_numerator_denominator <- function(design,denominator,numerator) {
+  design %>%
+    filter(!is.na({{numerator}})) %>% 
+    filter(!is.na({{denominator}})) %>% 
+    group_by({{denominator}},{{numerator}}) %>% #group_by
+    summarize(proportion = survey_mean(vartype = c("ci","cv")),
+              total = survey_total(vartype = c("ci","cv")),
+              n = unweighted(n())
+    ) %>% 
+    group_by({{denominator}}) %>% #group_by
+    mutate(p = prop.table(n),
+           t = sum(n),
+           sum_total = sum(total)) %>% 
+    ungroup() #%>% 
+    # filter({{numerator}}=="positivo")
+}
+
 outcome_to_numeric <- function(variable) {
   as.numeric({{variable}})-1
 }

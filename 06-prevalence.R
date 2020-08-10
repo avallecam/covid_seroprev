@@ -254,6 +254,16 @@ design <- uu_clean_data %>%
 
 # tablas de prevalencia ------
 
+#' ejemplos
+#' 1. fraccion de positivos en cada grupo de sinto, oligo, asinto
+#' 2. fraccion de sinto, oligo, asinto en el grupo de positivos o negativos
+cdc_srvyr_prevalence_numerator_denominator(design = design,
+                                           denominator = sintomas_cualquier_momento_cat,
+                                           numerator = ig_clasificacion)
+
+cdc_srvyr_prevalence_numerator_denominator(design = design,
+                                           denominator = ig_clasificacion,
+                                           numerator = sintomas_cualquier_momento_cat)
 
 # 01_general ----------------------------------------------------------------
 
