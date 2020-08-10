@@ -1176,11 +1176,14 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
                                   "no",
                                   sintomas_previos),
          
-         fecha_inicio_sintomas_previo=if_else(sintomas_anterior_total==0 & sintomas_previos=="si",
-                                              NA_character_,
-                                              as.character(fecha_inicio_sintomas_previo))) %>%
+         fecha_inicio_sintomas_previo=case_when(
+           sintomas_anterior_total==0 & sintomas_previos=="si"~NA_character_,
+           fecha_inicio_sintomas_previo<lubridate::ymd(20200628)~NA_character_, # 01 fecha inconsistente al pasado
+           TRUE~as.character(fecha_inicio_sintomas_previo))) %>%
+  
   mutate(fecha_inicio_sintomas_previo=lubridate::ymd(fecha_inicio_sintomas_previo)) %>% 
-  # select(fecha_inicio_sintomas_previo) %>% 
+  # select(fecha_inicio_sintomas_previo) %>%
+  # skimr::skim()
   # naniar::miss_var_summary()
   
   #'
@@ -1354,9 +1357,41 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     fecha_prueba_inicio_sintomas_cualquier_momento_cat!="[00-14]d"~"no"
   )) %>% 
   
+  #' [RIESGO]
+  
   # condiciones de riesgo
   rename_at(.vars = vars(contains("riesgo")),
-            .funs = janitor::make_clean_names)
+            .funs = janitor::make_clean_names) %>% 
+  
+  mutate(condicion_riesgo_mayor_60a=case_when(
+    edad_etapas_de_vida_c=="60a_mas"~"1",
+    TRUE~condicion_riesgo_mayor_60a
+  )) %>% 
+  
+  #' [HABITACIONES]
+  
+  # categorizar
+  mutate(nro_dormitorios_cat=case_when(
+    #1, 2, 3-5, >=6
+    nro_dormitorios==1~"01",
+    nro_dormitorios==2~"02",
+    nro_dormitorios>=3 & nro_dormitorios<=5~"03-05",
+    nro_dormitorios>=6~"06+",
+    TRUE~NA_character_
+  )) %>% 
+  
+  #' [etnias]
+  
+  mutate(etnia_cat=case_when(
+    magrittr::is_in(etnia,c("otros",#"afro",
+                            "nativo_selva","aimara",
+                            "indigena_originario")) ~ "otros",
+    TRUE~etnia
+  )) %>% 
+  
+  #' [contacto]
+  
+  select(-contacto_gripal)
 
 
 # _ pre step --------------------------------------------------------------
@@ -1412,6 +1447,23 @@ uu_clean_data %>%
 uu_clean_data %>% 
   select(contains("sinto")) %>% 
   glimpse()
+
+#' 
+#' [INCONSISTENCIAS]
+#' 
+
+# N=2 inconsistencias al futuro
+uu_clean_data %>% 
+  select(fecha_inicio_sintomas,fecha_prueba,fecha_prueba_inicio_sintomas_diff) %>% 
+  arrange(desc(fecha_inicio_sintomas)) %>% 
+  filter(fecha_prueba_inicio_sintomas_diff<0)
+
+# N=1 inconsistencias al futuro
+uu_clean_data %>% 
+  select(fecha_inicio_sintomas_previo,fecha_prueba,fecha_prueba_inicio_sintomas_previo_diff) %>% 
+  arrange(desc(fecha_inicio_sintomas_previo)) %>% 
+  filter(fecha_prueba_inicio_sintomas_previo_diff<0)
+
 
 #' 
 #' [consulta] 
@@ -1634,6 +1686,136 @@ uu_clean_data %>%
         sintomas_cualquier_momento_cat,
         # fecha_prueba_inicio_sintomas_cualquier_momento_cat,
         fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
+
+# _COVARIABLES!!! ---------------------------------------------------------
+
+#' [contacto]
+
+uu_clean_data %>% 
+  select(contains("contac"),cuarentena) %>% 
+  # skimr::skim()
+  naniar::miss_var_summary()
+
+uu_clean_data %>% 
+  select(contains("contac"),cuarentena) %>% 
+  filter(contacto_covid=="si") %>%
+  # skimr::skim()
+  naniar::miss_var_summary()
+
+uu_clean_data %>% 
+  select(contains("contac"),cuarentena) %>% 
+  filter(contacto_covid=="si") %>% 
+  janitor::tabyl(cuarentena,contacto_covid) %>% 
+  avallecam::adorn_ame(denominator = "col")
+
+uu_clean_data %>% 
+  select(contains("contac"),cuarentena) %>% 
+  filter(contacto_covid=="si") %>% 
+  janitor::tabyl(contacto_tipo,contacto_covid) %>% 
+  avallecam::adorn_ame(denominator = "col")
+
+#' 
+#' [vivienda]
+#' 
+uu_clean_data %>% 
+  count(nro_dormitorios_cat)
+
+#' 
+#' [etnias]
+#' 
+
+uu_clean_data %>% 
+  select(contains("etni"))%>% 
+  janitor::tabyl(etnia,sort = T) %>% 
+  janitor::adorn_pct_formatting()
+
+uu_clean_data %>% 
+  select(contains("etni"))%>% 
+  count(etnia_cat,sort = T)
+
+uu_clean_data %>% 
+  filter(etnia_cat=="otros") %>% 
+  count(etnia_cat,etnia_otros)
+
+
+#' 
+#' [TRABAJO]
+#' 
+uu_clean_data %>% 
+  select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
+  naniar::miss_var_summary()
+
+uu_clean_data %>% 
+  select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
+  filter(trabajo_reciente=="si") %>% 
+  naniar::miss_var_summary()
+
+#' [RECATEGORIZABLE] - [OCUPACION]
+# uu_clean_data %>% 
+#   select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
+#   filter(trabajo_reciente=="si") %>% 
+#   count(ocupacion,sort = T) %>% 
+#   # avallecam::print_inf()
+#   writexl::write_xlsx("table/10-20200810-ocupacion-pendiente_recategorizar.xlsx")
+
+uu_clean_data %>% 
+  select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
+  filter(trabajo_reciente=="si") %>% 
+  count(rubro,prof_salud,sort = T)
+
+
+#' 
+#' [SINTOMAS]
+#' 
+
+uu_clean_data %>% 
+  select(contains("sinto"),fecha_prueba) %>% 
+  select(contains("fecha")) %>% 
+  # glimpse()
+  skimr::skim()
+
+#' 
+#' [ATENCION EN SALUD]
+#' 
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  naniar::miss_var_summary()
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  count(atencion)
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  filter(sintomas_si_no=="si"|sintomas_previos=="si") %>% 
+  naniar::miss_var_summary()
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  filter(sintomas_si_no=="si"|sintomas_previos=="si") %>% 
+  count(atencion_sintomas)
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  filter(sintomas_si_no=="si"|sintomas_previos=="si") %>% 
+  count(falto_labores)
+
+uu_clean_data %>% 
+  select(atencion,sintomas_si_no,sintomas_previos,atencion_sintomas,falto_labores,situa_hospitalizado) %>% 
+  filter(sintomas_si_no=="si"|sintomas_previos=="si") %>% 
+  count(situa_hospitalizado)
+
+#' 
+#' [RIESGO]
+#' 
+
+
+uu_clean_data %>% 
+  select(edad,edad_etapas_de_vida_c,edad_etapas_de_vida_t,condicion_riesgo_mayor_60a) %>% 
+  filter(edad_etapas_de_vida_c=="60a_mas") %>% 
+  group_by(condicion_riesgo_mayor_60a) %>% 
+  skimr::skim(edad)
 
 # MISSINGS subset ---------------------------------------------------------
 

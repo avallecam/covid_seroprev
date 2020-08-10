@@ -227,8 +227,46 @@ covariate_list <- uu_clean_data %>%
          -contains("otro"),
          -contains("salud"),
          -contains("renal"),
-         -contains("60a")) %>% 
+         -contains("60a"),
+         contacto_covid,
+         etnia_cat,
+         trabajo_reciente,
+         atencion,
+         seguro_salud,
+         prueba_previa) %>% 
   colnames()
+
+#' [sub-prevalencias]
+#' nuevos denominadores para cada uno
+#' 
+#' sintomas_cualquier_momento_cat
+#' dentro de sintomáticos en cualquier momento
+#' inicio de sintomas: 
+#' - en últimos 14 días
+#' - antes de los últimos a 14 días
+#' necesitó atencion medica? atencion_sintomas
+#' faltó labores? falto_labores
+#' tuvo que ser hospitalizado? situa_hospitalizado #solo sintomas previos
+#' 
+#' contacto_covid
+#' dentro de los contactados
+#' cuarentena: si o no
+#' contacto_tipo: 5 tipos
+#' fecha_last_contacto: [categorizar]
+#' 
+#' trabajo_reciente
+#' dentro de los que trabajaron
+#' rubro: 6 rubros
+
+#' [analisis 2: dentro de los positivos]
+#' # sub-prevalencias?
+#' 
+#' asintomáticos
+#' cuarentena
+#' contacto_tipo
+#' fecha_last_contacto
+#' seguro_salud
+
 # ____________ ------------------------------------------------------------
 
 # SEROPREVALENCIA ---------------------------------------------------------
