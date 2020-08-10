@@ -990,6 +990,7 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   
   # filter(conglomerado=="2783801") %>% filter(numero_vivienda=="99") %>%
   
+  #' [EXCLUSION]
   # justificación: sin ningún resultado de prueba no hay outcome
   # va al flujograma de numero de participantes
   # se van 17 observaciones
@@ -1016,6 +1017,7 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
          convResultado=as.factor(convResultado),
          sintomas_si_no=as.factor(sintomas_si_no)) %>% 
   
+  #' [DISEÑO]
   # identificación de elementos del diseño
   mutate(CONGLOMERADO= conglomerado, #PSU
          VIVIENDA= numero_vivienda, #SSU
@@ -1033,6 +1035,8 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   
   # creacion de variables y recategorizacion
   
+  #' [HACINAMIENTO]
+  
   # hacinamiento: redatam
   mutate(nro_dormitorios = as.numeric(nro_dormitorios),
          nro_convivientes = as.numeric(nro_convivientes)) %>% 
@@ -1043,6 +1047,8 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   mutate(hacinamiento=case_when(ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
                                 ind_hacin>=2.5 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
   mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
+  
+  #' [POBREZA MEF]
   
   # pobreza: mef
   mutate(nbi_haci=case_when(ind_hacin>=0.1 & ind_hacin<=3.4~0,
@@ -1095,7 +1101,9 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   rename_at(.vars = vars(contains("sinto")),
             .funs = janitor::make_clean_names) %>% 
   
-  # sintomas actuales
+  #'
+  #'  [sintomas actuales]
+  #'  
   
   #' suma horizontal total de sintomas
   mutate_at(.vars = vars(sintomas_fiebre:sintomas_anosmia),
@@ -1116,13 +1124,24 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     sintomas_actual_total>=2 | sintomas_anosmia==1 ~ "si",
     TRUE~"no"
   )) %>% 
-  #' aplicar consistencia de registros [ VER SI HAY REGISTRO QUE SE PIERDEN ]
+  # select(sintomas_actual_covid,sintomas_actual_oligo,sintomas_si_no) %>% 
+  # filter(is.na(sintomas_si_no))
+  #' aplicar consistencia de registros
+  #' 
+  #' valor perdido en reporte de sintomas actuales, 
+  #' también debe de trasladarse a las variables sinto y oligo 
+  #' 
   mutate(
     sintomas_actual_covid=if_else(is.na(sintomas_si_no),NA_character_,sintomas_actual_covid),
     sintomas_actual_oligo=if_else(is.na(sintomas_si_no),NA_character_,sintomas_actual_oligo)
   ) %>% 
   
-  #' aplciar mismo protocolo para el reporte del otro grupo de sintomas
+  #' aplicar mismo protocolo para el reporte del otro grupo de sintomas
+  #' 
+  #'
+  #'  [sintomas previos]
+  #'  
+  #' 
   #' 
   # sintomas previos | anterior
   mutate_at(.vars = vars(sintomas_anterior_fiebre:sintomas_anterior_anosmia),
@@ -1147,8 +1166,12 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   
   # filter(sintomas_anterior_total==0,sintomas_previos=="si") %>% #dim() # 1 obs
   # select(observacion_sintomas) # missing
-  # # corregir valor incoherente
-  #' 01 observación no reportó síntomas pero sí fecha. acción: fecha se cambió a valor perdido.
+  #' 
+  #' corregir valor incoherente
+  #' 
+  #' 01 observación no reportó síntomas pero sí fecha. 
+  #' acción: fecha se cambió a valor perdido.
+  #' 
   mutate(sintomas_previos=if_else(sintomas_anterior_total==0 & sintomas_previos=="si",
                                   "no",
                                   sintomas_previos),
@@ -1160,6 +1183,10 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   # select(fecha_inicio_sintomas_previo) %>% 
   # naniar::miss_var_summary()
   
+  #'
+  #'  [sintomas cualquier momento]
+  #'  
+  
   # reintegrar valor corregido
   mutate(sintomas_cualquier_momento=case_when(
     sintomas_si_no=="si" | sintomas_previos=="si" ~ "si",
@@ -1167,36 +1194,103 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     TRUE ~ "missing"
   )) %>% 
   
-  # sintomas fecha
+  #'
+  #'  [fecha prueba]
+  #'  
+  #'  corrección del registro de esta fecha
+  #'  se usó como punto de referencia para la 
+  #'  categorizacion de inicio de sintomas a 
+  #'  14 días de la visita del estudio
+  #'  
+  mutate(fecha_prueba=lubridate::ymd(fecha_prueba)) %>%
+  # skimr::skim(fecha_prueba) #17 missing del 01/07/1970 al 13/07/2020
+  #'  
+  #'  [CORRECCIÓN]
+  #'  
+  #'  MISSING en fecha de prueba
+  #'  - si diris norte -> today
+  #'  - si diris sur -> today
+  #'  - si diris callao -> today
+  #'  - si diris centro -> left_01_fecha_coleccion
+  #'
+  # CORRECCION DE MISSINGS
+  # filter(is.na(fecha_prueba)) %>%
   mutate(fecha_prueba=case_when(
-    fecha_prueba<lubridate::ymd(20200628)~NA_character_, # inicio
-    fecha_prueba>lubridate::ymd(20200710)~NA_character_, # fin
+    is.na(fecha_prueba) & diris=="DIRIS NORTE" ~ lubridate::ymd(today),
+    is.na(fecha_prueba) & diris=="DIRIS SUR" & is.na(today) ~ left_01_fecha_coleccion,
+    is.na(fecha_prueba) & diris=="DIRIS SUR" ~ lubridate::ymd(today),
+    is.na(fecha_prueba) & diris=="CALLAO" ~ lubridate::ymd(today),
+    is.na(fecha_prueba) & diris=="DIRIS CENTRO" ~ left_01_fecha_coleccion,
     TRUE~fecha_prueba
   )) %>% 
-  mutate(fecha_prueba=lubridate::ymd(fecha_prueba)) %>%
+  
+  # filter(is.na(fecha_prueba)) %>%
+  # count(today,`_submission__submission_time`,`_submission_time`,
+  #       left_01_fecha_coleccion,fecha_prueba,diris,nm_dist) %>%
+  # avallecam::print_inf()
+  #
+  #'  [CORRECCIÓN]
+  #'  
+  #'  OUTLIERS en fecha de prueba
+  #'  - si diris norte -> today
+  #'  - si diris centro -> left_01_fecha_coleccion 
+  #'  - si diris callao -> 20200701 #POR error de digitación
+  #'  - si diris sur -> left_01_fecha_coleccion
+  #'  
+  # CORRECCION DE OUTLIERS
+  # filter(fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) %>%
+  mutate(fecha_prueba=case_when(
+    (fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) & diris=="DIRIS NORTE" & lubridate::ymd(today)>lubridate::ymd(20200710) ~ left_01_fecha_coleccion,
+    (fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) & diris=="DIRIS NORTE" ~ lubridate::ymd(today),
+    (fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) & diris=="DIRIS CENTRO" ~ left_01_fecha_coleccion,
+    (fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) & diris=="DIRIS SUR" ~ left_01_fecha_coleccion,
+    (fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) & diris=="CALLAO" ~ lubridate::ymd(20200701),
+    TRUE~fecha_prueba)) %>% 
+  
+  # filter(fecha_prueba<lubridate::ymd(20200628) | fecha_prueba>lubridate::ymd(20200710)) %>%
+  # count(today,`_submission__submission_time`,`_submission_time`,left_01_fecha_coleccion,fecha_prueba,diris,nm_dist) %>%
+  # avallecam::print_inf()
+  # glimpse()
+  
+  # select(contains("fecha")) %>% 
+  # naniar::miss_var_summary()
+  
+  #'
+  #' 
+  #' [sintomas]
+  #' 
+  # select(contains("sintoma")) %>% glimpse()
+  
+  # select(sintomas_si_no,sintomas_actual_total,
+  #        sintomas_previos,sintomas_anterior_total,
+  #        fecha_inicio_sintomas,fecha_inicio_sintomas_previo,
+  #        fecha_prueba,
+  #        presente_prueba,ig_clasificacion,convResultado) %>% 
+  # filter(sintomas_previos=="si") %>% # N=2
+  # filter(sintomas_si_no=="si") %>% N=5
+  # filter(is.na(sintomas_si_no)) %>% 
+  # filter(is.na(fecha_inicio_sintomas_previo)) %>% 
+  # avallecam::print_inf()
+  
+  #'
+  #' [fecha sintomas actual]
+  #'
   
   # sintomas actual
-  # si fecha prueba is NA then last enrolment day
-  # si fecha sintomas in NA then fecha prueba is day
-  #' 
-  #' si la observación tiene registro de síntomas, 
-  #' valor perdido en fecha de inicio y valor perdido en fecha de prueba, 
-  #' se reemplazó por el último día de muestreo (10 de julio)
-  #' 
-  #' si respondieron que actualmente sí tenían síntomas y no hubo fecha registrada, 
-  #' la reemplazaba con la fecha de la prueba actual (fecha en la que se tomó prueba)
-  #' 
-  mutate(fecha_prueba_actual=if_else(sintomas_si_no=="si" & is.na(fecha_prueba),
-                                     lubridate::ymd(20200710),fecha_prueba),
-         fecha_inicio_sintomas=if_else(sintomas_si_no=="si" & is.na(fecha_inicio_sintomas),
-                                       fecha_prueba_actual,fecha_inicio_sintomas)) %>% 
+  # si fecha prueba is NA -> missgins & outliers fixed
+  # si fecha sintomas in NA then fecha sintomas is NA
+  
+  mutate(fecha_prueba_actual = fecha_prueba) %>% 
+  
   # naniar::miss_var_summary()
   #' 
+  #' [TIEMPO DE VISITA A INICIO DE SINTOMAS]
   #' el tiempo de los síntomas se calculó 
   #' al restar la fecha de prueba corregida con 
   #' la fecha de inicio de sintomas corregida
   #' 
-  mutate(fecha_prueba_inicio_sintomas_diff=fecha_prueba_actual-fecha_inicio_sintomas) %>%
+  mutate(fecha_prueba_inicio_sintomas_diff = fecha_prueba_actual - fecha_inicio_sintomas) %>%
+  
   mutate(fecha_prueba_inicio_sintomas_diff_cat=case_when(
     fecha_prueba_inicio_sintomas_diff<=14~"[00-14]d",
     fecha_prueba_inicio_sintomas_diff<=60~"[15-60]d",
@@ -1213,15 +1307,15 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     # TRUE~"no"
   )) %>% 
   
-  # sintomas previo
-  # si fecha prueba is NA then last enrolment day
-  # si fecha sintomas in NA then fecha prueba is day
-  mutate(fecha_prueba_previo=if_else(sintomas_previos=="si" & is.na(fecha_prueba),
-                                     lubridate::ymd(20200710),fecha_prueba),
-         fecha_inicio_sintomas_previo=if_else(sintomas_previos=="si" & is.na(fecha_inicio_sintomas_previo),
-                                              fecha_prueba_previo,fecha_inicio_sintomas_previo)) %>% 
+  #'
+  #' [fecha sintomas previo]
+  #'
+  #'# sintomas previo
+  mutate(fecha_prueba_previo = fecha_prueba) %>%
   # naniar::miss_var_summary()
-  mutate(fecha_prueba_inicio_sintomas_previo_diff=fecha_prueba_previo-fecha_inicio_sintomas_previo) %>%
+  # 
+  mutate(fecha_prueba_inicio_sintomas_previo_diff = fecha_prueba_previo - fecha_inicio_sintomas_previo) %>%
+  
   mutate(fecha_prueba_inicio_sintomas_previo_diff_cat=case_when(
     fecha_prueba_inicio_sintomas_previo_diff<=14~"[00-14]d",
     fecha_prueba_inicio_sintomas_previo_diff<=60~"[15-60]d",
@@ -1250,8 +1344,8 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
       sintomas_anterior_oligo=="si" ~ "sinto_oligo",
       sintomas_anterior_covid=="si" ~ "sinto_covid"
     ),
-    sintomas_cualquier_momento_cat=coalesce(sintomas_anterior_cat,sintomas_actual_cat),
-    fecha_prueba_inicio_sintomas_cualquier_momento_cat=coalesce(fecha_prueba_inicio_sintomas_previo_diff_cat,fecha_prueba_inicio_sintomas_diff_cat)
+    sintomas_cualquier_momento_cat = coalesce(sintomas_anterior_cat, sintomas_actual_cat),
+    fecha_prueba_inicio_sintomas_cualquier_momento_cat = coalesce(fecha_prueba_inicio_sintomas_previo_diff_cat, fecha_prueba_inicio_sintomas_diff_cat)
   ) %>% 
   # cualquier momento dentro de los 14 dias
   mutate(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=case_when(
@@ -1319,6 +1413,11 @@ uu_clean_data %>%
   select(contains("sinto")) %>% 
   glimpse()
 
+#' 
+#' [consulta] 
+#' en columnas de observaciones
+#' ¿se recuperará alguna información de ellas?
+#' 
 # uu_clean_data %>% 
 #   select(observacion_sintomas) %>% 
 #   filter(!is.na(observacion_sintomas)) %>% 
@@ -1331,6 +1430,11 @@ uu_clean_data %>%
 #   # avallecam::print_inf()
 #   writexl::write_xlsx("table/09-uu_clean_data-observacion-revisar.xlsx")
 
+#' 
+#' [nota]
+#' sintomas cualquier momento integra las respuestas
+#' en sintomas actual y sintomas previos
+#' 
 uu_clean_data %>% 
   select(contains("sinto")) %>% 
   count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento)
@@ -1338,35 +1442,87 @@ uu_clean_data %>%
 # naniar::miss_var_summary() %>% 
 # avallecam::print_inf()
 
+#' [nota]
+#' con las correcciones ejecutadas, 
+#' ya no se poseen valores perdidos en fechas
+#' 
+#' N=5 en actuales
+#' N=3 en previos
+#' 
+uu_raw_data %>% 
+  select(sintomas_si_no,fecha_inicio_sintomas) %>% 
+  filter(sintomas_si_no=="si") %>% 
+  naniar::miss_var_summary()
 uu_clean_data %>% 
   select(sintomas_si_no,fecha_inicio_sintomas) %>% 
   filter(sintomas_si_no=="si") %>% 
   naniar::miss_var_summary()
 # skimr::skim()
+uu_raw_data %>% 
+  select(sintomas_previos,fecha_inicio_sintomas_previo) %>% 
+  filter(sintomas_previos=="si") %>% 
+  naniar::miss_var_summary()
 uu_clean_data %>% 
   select(sintomas_previos,fecha_inicio_sintomas_previo) %>% 
   filter(sintomas_previos=="si") %>% 
   naniar::miss_var_summary()
 
+#' 
+#' [notas]
+#' fechas no se sobrelapan
+#' fechas tienen registros inconsistentes
+#' solucion:
+#' no fueron modificadas, pero en la categorización se corrigieron 
+#' segun las fechas de la toma de prueba o fin de estudio [ver codigo] 
+#' 
 # # complementos: fechas no se sobrelapan
-# uu_clean_data %>% 
-#   count(fecha_inicio_sintomas,fecha_inicio_sintomas_previo) %>% 
-#   avallecam::print_inf()
+uu_clean_data %>%
+  # count(fecha_inicio_sintomas,fecha_inicio_sintomas_previo) %>%
+  # avallecam::print_inf()
+  select(fecha_inicio_sintomas,fecha_inicio_sintomas_previo) %>% 
+  skimr::skim()
 
+#' 
+#' [nota]
+#' clasificación en sinto, oligo o asinto de forma independiente 
+#' en reportes actuales o previos
+#' 
+#' definicion
+#' asintomático: sin síntoma cualquiera
+#' oligosintomático: 1 síntoma sin anosmia (ageusia)
+#' sintomático: solo anosmia (ageusia) OR al menos 2+ síntomas covid
+#' 
 #verificacion
-uu_clean_data %>% 
-  count(sintomas_previos,sintomas_anterior_total,
-        sintomas_anterior_covid,sintomas_anterior_oligo,sintomas_anterior_anosmia) # un caso sin sintomas
 uu_clean_data %>% 
   count(sintomas_si_no,sintomas_actual_total,
         sintomas_actual_covid,sintomas_actual_oligo,sintomas_anosmia)
+#' un caso sin sintomas [ver codigo]
+uu_clean_data %>% 
+  count(sintomas_previos,sintomas_anterior_total,
+        sintomas_anterior_covid,sintomas_anterior_oligo,sintomas_anterior_anosmia) 
 
+
+#'
+#' [nota]
+#' verificar cruce de registros actuales, previs, cualquier momento
+#' y su categorización en sinto, oligo, asinto y en intervalos de tiempo 
+#' según fecha de inicio de síntomas en tres rangos
+#' y otra variable con solo 14 dias
+#' 
 # caso mencionado
 uu_clean_data %>% 
-  count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,
-         sintomas_cualquier_momento_cat,fecha_prueba_inicio_sintomas_cualquier_momento_cat)
+  count(sintomas_si_no,sintomas_previos,
+        sintomas_cualquier_momento,
+        sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat)
   # filter(sintomas_previos=="si",sintomas_anterior_total==0) %>% 
   # glimpse()
+uu_clean_data %>% 
+  count(sintomas_si_no,sintomas_previos,
+        sintomas_cualquier_momento,
+        sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
 
 # uu_clean_data %>% 
 #   # select(contains("fecha")) %>% 
@@ -1377,41 +1533,66 @@ uu_clean_data %>%
 #   count(fecha_prueba) %>% 
 #   avallecam::print_inf()
 
+#' 
+#' [nota]
+#' verificación independiente de la categorización de 
+#' rangos de tiempo por fecha de inicio de sintomas
+#' 
 uu_clean_data %>% 
   count(sintomas_previos,fecha_inicio_sintomas_previo_14d)
 uu_clean_data %>% 
   count(sintomas_previos,fecha_inicio_sintomas_previo_14d,
         fecha_inicio_sintomas_previo_60d,fecha_prueba_inicio_sintomas_previo_diff_cat)
 uu_clean_data %>% 
-  count(fecha_inicio_sintomas_14d)
+  count(sintomas_si_no,fecha_inicio_sintomas_14d)
 uu_clean_data %>% 
   count(sintomas_si_no,fecha_inicio_sintomas_14d,fecha_inicio_sintomas_60d,fecha_prueba_inicio_sintomas_diff_cat)
 # group_by(fecha_inicio_sintomas_14d) %>%
 # skimr::skim(fecha_prueba_inicio_sintomas_diff)
 
+
+#' 
+#' [nota]
+#' clasificacion integrada en la variable cualquier momento
+#' 
 uu_clean_data %>% 
   count(#sintomas_si_no,sintomas_previos,
         sintomas_cualquier_momento,
-        sintomas_cualquier_momento_cat,fecha_prueba_inicio_sintomas_cualquier_momento_cat)
+        sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
 
-uu_clean_data %>% 
-  count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,
-        sintomas_cualquier_momento_cat,fecha_prueba_inicio_sintomas_cualquier_momento_cat)
+#' 
+#' [nota]
+#' lista extendida con numero de síntomas total
+#'
+# uu_clean_data %>% 
+#   count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,sintomas_actual_total,sintomas_anterior_total,
+#         sintomas_cualquier_momento_cat,fecha_prueba_inicio_sintomas_cualquier_momento_cat) %>% 
+#   avallecam::print_inf()
 
+#' 
+#' [nota]
+#' las dos variables sintomas cualquier momento
+#' fueron creadas con coalesce
+#' 
 uu_clean_data %>% 
-  count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,sintomas_actual_total,sintomas_anterior_total,
-        sintomas_cualquier_momento_cat,fecha_prueba_inicio_sintomas_cualquier_momento_cat) %>% 
-  avallecam::print_inf()
-
-
+  count(sintomas_si_no,sintomas_previos,
+        sintomas_cualquier_momento,
+        sintomas_actual_cat,
+        sintomas_anterior_cat,
+        sintomas_cualquier_momento_cat)
 uu_clean_data %>% 
-  count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,
-        sintomas_actual_cat,sintomas_anterior_cat,sintomas_cualquier_momento_cat)
-uu_clean_data %>% 
-  count(sintomas_si_no,sintomas_previos,sintomas_cualquier_momento,
-        fecha_prueba_inicio_sintomas_diff_cat,fecha_prueba_inicio_sintomas_previo_diff_cat,
+  count(sintomas_si_no,sintomas_previos,
+        sintomas_cualquier_momento,
+        fecha_prueba_inicio_sintomas_diff_cat,
+        fecha_prueba_inicio_sintomas_previo_diff_cat,
         fecha_prueba_inicio_sintomas_cualquier_momento_cat)
 
+#' 
+#' [nota]
+#' repetida verificacion de categorias y tiempo
+#' 
 uu_clean_data %>% 
   count(sintomas_si_no,
         sintomas_anosmia,
@@ -1424,7 +1605,6 @@ uu_clean_data %>%
         fecha_prueba_inicio_sintomas_diff_cat,
         fecha_inicio_sintomas_14d,
         fecha_inicio_sintomas_60d)
-
 uu_clean_data %>% 
   count(sintomas_previos,
         sintomas_anterior_oligo,
@@ -1436,6 +1616,10 @@ uu_clean_data %>%
         fecha_inicio_sintomas_previo_14d,
         fecha_inicio_sintomas_previo_60d)
 
+#' 
+#' [nota]
+#' repetida verificacion de categorias y tiempo
+#' 
 uu_clean_data %>% 
   count(sintomas_si_no,sintomas_previos,
         sintomas_cualquier_momento,
@@ -1443,6 +1627,13 @@ uu_clean_data %>%
         fecha_prueba_inicio_sintomas_cualquier_momento_cat,
         fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
 
+uu_clean_data %>% 
+  count(#sintomas_si_no,
+        #sintomas_previos,
+        sintomas_cualquier_momento,
+        sintomas_cualquier_momento_cat,
+        # fecha_prueba_inicio_sintomas_cualquier_momento_cat,
+        fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d)
 
 # MISSINGS subset ---------------------------------------------------------
 
