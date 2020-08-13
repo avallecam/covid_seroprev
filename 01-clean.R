@@ -1741,6 +1741,10 @@ uu_clean_data %>%
 #' 
 #' [TRABAJO]
 #' 
+
+uu_clean_data %>% 
+  count(rubro)
+
 uu_clean_data %>% 
   select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
   naniar::miss_var_summary()
@@ -1751,10 +1755,10 @@ uu_clean_data %>%
   naniar::miss_var_summary()
 
 #' [RECATEGORIZABLE] - [OCUPACION]
-# uu_clean_data %>% 
-#   select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
-#   filter(trabajo_reciente=="si") %>% 
-#   count(ocupacion,sort = T) %>% 
+# uu_clean_data %>%
+#   select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>%
+#   filter(trabajo_reciente=="si") %>%
+#   count(rubro,ocupacion,sort = T) %>%
 #   # avallecam::print_inf()
 #   writexl::write_xlsx("table/10-20200810-ocupacion-pendiente_recategorizar.xlsx")
 
@@ -1844,11 +1848,11 @@ uu_clean_data %>%
   janitor::adorn_pct_formatting()
 
 uu_clean_data %>% 
-  select(dni,nombre_completo,#nombres,apellido_paterno,apellido_materno,
+  filter(is.na(nivel_academico)) %>% 
+  select(dni,tipo_doc,nombre_completo,#nombres,apellido_paterno,apellido_materno,
          edad,nivel_academico) %>% 
   # naniar::miss_var_summary() %>% 
   # avallecam::print_inf()
-  filter(is.na(nivel_academico)) %>% 
   # avallecam::print_inf()
   writexl::write_xlsx("table/08-20200728-missings-nivel_educativo.xlsx")
 
