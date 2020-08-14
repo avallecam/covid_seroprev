@@ -1,5 +1,8 @@
 library(tidyverse)
 library(skimr)
+library(purrr)
+library(furrr)
+library(tictoc)
 
 set.seed(33)
 
@@ -12,7 +15,7 @@ set.seed(33)
 #' this allows values out of 0-1 range
 
 ## Function to adjust the observed prevalence for a single Se & Sp
-adj.func <- function(prev.obs, Se, Sp) {
+rogan_gladen_estimator <- function(prev.obs, Se, Sp) {
   
   return((prev.obs+Sp-1)/(Se+Sp-1))
   
@@ -25,9 +28,10 @@ adj.func <- function(prev.obs, Se, Sp) {
 #   n=seq(200L,100L,-100L),
 #   se=seq(0.9,0.8,-0.1),
 #   sp=seq(0.8,0.9,0.1)
-# ) %>% 
-#   mutate(raw=p/n) %>% 
-#   mutate(adjust=pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = adj.func))
+# ) %>%
+#   mutate(raw=p/n) %>%
+#   mutate(adjust=pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
+#   # mutate(adjust=future_pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
 
 # larremorre method 2020 --------------------------------------------------
 
@@ -38,12 +42,12 @@ source("covid_serological_sampling.R")
 
 seroprevalence_posterior <- function(positive_number_test,
                                      total_number_test,
-                                     sensibility,
+                                     sensitivity,
                                      specificity) {
   
   posi <- positive_number_test
   ni <- total_number_test
-  se <- sensibility
+  se <- sensitivity
   sp <- specificity
   
   result <- sample_posterior_r_mcmc_hyperR(samps = 10000,
@@ -101,8 +105,8 @@ cdc_srvyr_create_table_free <- function(data,
 # # reproducible example 01
 # tidy_result <- seroprevalence_posterior(positive_number_test = 16,
 #                                         total_number_test = 16+84,
-#                                         # sensibility = 1,specificity = 1
-#                                         sensibility = 0.93,
+#                                         # sensitivity = 1,specificity = 1
+#                                         sensitivity = 0.93,
 #                                         specificity = 0.975
 #                                         )
 # 
@@ -132,6 +136,9 @@ cdc_srvyr_create_table_free <- function(data,
 #   scale_x_continuous(breaks = scales::pretty_breaks())
 
 # # reproducible example 02
+# # plan(sequential)
+# plan(multisession, workers = availableCores())
+# tic()
 # result <- tibble(
 #   g=1:2,
 #   p=seq(10L,20L,10L),
@@ -139,12 +146,14 @@ cdc_srvyr_create_table_free <- function(data,
 #   se=seq(0.9,0.8,-0.1),
 #   sp=seq(0.8,0.9,0.1)
 # ) %>%
-#   mutate(fix=pmap(.l = select(.,
+#   # mutate(fix=pmap(.l = select(.,
+#   mutate(fix=future_pmap(.l = select(.,
 #                               positive_number_test=p,
 #                               total_number_test=n,
-#                               sensibility=se,
+#                               sensitivity=se,
 #                               specificity=sp),
 #                   .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
+# toc()
 # 
 # result %>%
 #   unnest(fix) %>%

@@ -16,7 +16,7 @@
 #' (x) crear grafico solo de edades. tabla con valores puntuales generales y sexo
 #' (x) mapa con dos capas de label diris
 #' (x) ajustado por test performance: (sens 0.9694 | spec 0.9574)
-#' ( ) reproduce gelman adjustment approach!
+#' (-) reproduce gelman adjustment approach!
 
 
 library(tidyverse)
@@ -219,6 +219,7 @@ covariate_list <- uu_clean_data %>%
          diris,
          pobreza_dico,
          hacinamiento,
+         nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,
          riesgo,
@@ -237,29 +238,27 @@ covariate_list <- uu_clean_data %>%
   colnames()
 
 #' [sub-prevalencias]
-#' nuevos denominadores para cada uno
+#' nuevo __group_by__ para cada uno
 #' 
-#' sintomas_cualquier_momento_cat
+#' ** sintomas_cualquier_momento_cat
 #' dentro de sintomáticos en cualquier momento
-#' inicio de sintomas: 
-#' - en últimos 14 días
-#' - antes de los últimos a 14 días
-#' necesitó atencion medica? atencion_sintomas
-#' faltó labores? falto_labores
-#' tuvo que ser hospitalizado? situa_hospitalizado #solo sintomas previos
+#' - inicio de sintomas: en últimos 14 días
+#' - necesitó atencion medica? atencion_sintomas
+#' - faltó labores? falto_labores
+#' - tuvo que ser hospitalizado? situa_hospitalizado #solo sintomas previos
 #' 
-#' contacto_covid
+#' ** contacto_covid
 #' dentro de los contactados
-#' cuarentena: si o no
-#' contacto_tipo: 5 tipos
-#' fecha_last_contacto: [categorizar]
+#' - cuarentena: si o no
+#' - contacto_tipo: 5 tipos
+#' - fecha_last_contacto: [categorizar]
 #' 
-#' trabajo_reciente
+#' ** trabajo_reciente
 #' dentro de los que trabajaron
-#' rubro: 6 rubros
+#' - rubro: 6 rubros
 
 #' [analisis 2: dentro de los positivos]
-#' # sub-prevalencias?
+#' # nuevo __denominador__ 
 #' 
 #' asintomáticos
 #' cuarentena
@@ -912,24 +911,42 @@ figura00_pre <- outcome_01 %>%
 
 # ____ apply serological sampling -----------------------------------------
 
-
+plan(multisession, workers = availableCores())
+# tic()
 figura00_adj <- figura00_pre %>% 
   filter(category=="overall") %>% 
   # slice(1) %>% 
   filter(!is.na(se_loc)) %>% 
-  mutate(adj_loc=pmap(.l = select(.,
+  
+  #' 
+  #' set validacion local
+  #' 
+  # mutate(adj_loc=pmap(.l = select(.,
+  mutate(adj_loc=future_pmap(.l = select(.,
                                   positive_number_test=total,
                                   total_number_test=sum_total,
-                                  sensibility=se_loc,
+                                  sensitivity=se_loc,
                                   specificity=sp_loc),
                       .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
-  mutate(adj_fab=pmap(.l = select(.,
+  mutate(adj_loc_rg=future_pmap_dbl(.l = select(.,
+                                                prev.obs=proportion, 
+                                                Se=se_loc, Sp=sp_loc),
+                                .f = rogan_gladen_estimator)) %>% 
+  #' 
+  #' set validacion empresa
+  #' 
+  # mutate(adj_fab=pmap(.l = select(.,
+  mutate(adj_fab=future_pmap(.l = select(.,
                                   positive_number_test=total,
                                   total_number_test=sum_total,
-                                  sensibility=se_fab,
+                                  sensitivity=se_fab,
                                   specificity=sp_fab),
-                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
-
+                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
+  mutate(adj_fab_rg=future_pmap_dbl(.l = select(.,
+                                                prev.obs=proportion, 
+                                                Se=se_fab, Sp=sp_fab),
+                                    .f = rogan_gladen_estimator)) 
+# toc()
 # ____ create table -------------------------------------------------------
 
 figura00_adj_loc <- figura00_adj %>% 
