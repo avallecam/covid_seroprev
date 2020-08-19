@@ -196,7 +196,7 @@ raw_prop_table <- uu_clean_data %>%
     raw_prop=ci.binom(value)[1],
     raw_lowc=ci.binom(value)[2],
     raw_uppc=ci.binom(value)[3]#,
-    # raw_semc=ci.binom(value)[3]
+    raw_semc=ci.binom(value)[3]
   ) %>% 
   cdc_srvyr_create_table_free(estim_var = raw_prop,
                               cilow_var = raw_lowc,

@@ -6,6 +6,13 @@ library(tictoc)
 
 set.seed(33)
 
+sensitivity = 0.93
+specificity = 0.975
+positive_pop <- c(321, 123, 100, 10)
+negative_pop <- c(1234, 500, 375, 30)
+
+# . -------------------------------------------------------------------------
+# . -------------------------------------------------------------------------
 
 # rogan-glanden estimator 1978 --------------------------------------------
 #' from
@@ -21,6 +28,35 @@ rogan_gladen_estimator <- function(prev.obs, Se, Sp) {
   
 }
 
+# assumes to generate results from independent studies
+rogan_gladen_stderr_unk <- function(prev.obs, stderr.obs, prev.tru, Se, Sp, n_Se, n_Sp) {
+  out <- (1/(Se+Sp-1))*sqrt((stderr.obs+((Se*(1-Se))/n_Se)+((Sp*(1-Sp))/n_Sp)*(1-prev.tru)^2))
+}
+
+# prop.test(x = 321,n = 321+1234) %>% broom::glance()
+# binom.test(x = 321,n = 321+1234) %>% broom::glance()
+# https://stackoverflow.com/questions/17802320/r-proportion-confidence-interval-factor
+# https://stackoverflow.com/questions/21719578/confidence-interval-for-binomial-data-in-r
+
+tibble(positive=positive_pop,
+       negative=negative_pop) %>% 
+  mutate(total=positive+negative,
+         prev_app=positive_pop/(positive_pop+negative_pop),
+         # assumes random sample from large population
+         stde_app=sqrt(prev_app * (1 - prev_app)/(total))) %>% 
+  mutate(prev_tru=rogan_gladen_estimator(prev.obs = prev_app,
+                                  Se = 0.90,
+                                  Sp = 0.76),
+         stde_tru=rogan_gladen_stderr_unk(prev.obs = prev_app,
+                                          prev.tru = prev_tru,
+                                          stderr.obs = stde_app,
+                                          Se = 0.90,
+                                          Sp = 0.76,
+                                          n_Se = 1586,
+                                          n_Sp = 1586)) %>% 
+  mutate(prev_tru_low=prev_tru-qnorm(0.975)*stde_tru,
+         prev_tru_upp=prev_tru+qnorm(0.975)*stde_tru)
+
 # # reproducible example 00
 # tibble(
 #   g=1:2,
@@ -33,12 +69,84 @@ rogan_gladen_estimator <- function(prev.obs, Se, Sp) {
 #   mutate(adjust=pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
 #   # mutate(adjust=future_pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
 
+# . -------------------------------------------------------------------------
+# . -------------------------------------------------------------------------
+
 # larremorre method 2020 --------------------------------------------------
 
-# _ known -----------------------------------------------------------------
+# . -----------------------------------------------------------------------
+
+
+# _ KNOWN performance -----------------------------------------------------------------
 
 
 source("covid_serological_sampling.R")
+
+# __ ONE-POP -----------------------------------------------------------------
+
+# reproduce this
+# https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_onepopulation_workbook.ipynb
+
+result_one <- sample_posterior_r_mcmc_hyperR(samps = 10000,
+                                             posi = positive_pop[1],
+                                             ni = negative_pop[1],
+                                             # se = sensitivity,
+                                             # sp = specificity,
+                                             se = 0.977,
+                                             sp = 0.986,
+                                             gam0 = 150
+)
+
+result_one %>% 
+  as_tibble()
+
+result_one %>% 
+  skim()
+
+result_one %>% 
+  as_tibble() %>% 
+  ggplot(aes(x = r1)) +
+  geom_histogram(aes(y=..density..),binwidth = 0.005)
+
+# __ SUB-POPS --------------------------------------------------------------
+
+# reproduce this
+# https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_subpopulations_workbook.ipynb
+
+result_sub <- sample_posterior_r_mcmc_hyperR(samps = 10000,
+                                         posi = positive_pop,
+                                         ni = positive_pop+negative_pop,
+                                         se = sensitivity,
+                                         sp = specificity,
+                                         # se = 0.977,
+                                         # sp = 0.986,
+                                         gam0 = 150
+                                         )
+
+result_sub %>% 
+  as_tibble()
+
+result_sub %>% 
+  skim()
+
+result_sub %>% 
+  as_tibble() %>% 
+  rownames_to_column() %>% 
+  select(-gam) %>% 
+  pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
+  ggplot(aes(x = values, color = estimates)) +
+  geom_density()
+  # ggplot() +
+  # geom_density(aes(x = r)) +
+  # geom_density(aes(x = r1)) +
+  # geom_density(aes(x = r2)) +
+  # geom_density(aes(x = r3)) +
+  # geom_density(aes(x = r4))
+
+# . -----------------------------------------------------------------------
+
+
+# __ custom functions -----------------------------------------------------
 
 seroprevalence_posterior <- function(positive_number_test,
                                      total_number_test,
@@ -61,7 +169,7 @@ seroprevalence_posterior <- function(positive_number_test,
     as_tibble()
   
   my_skim <- skim_with(
-    numeric = sfl(p05 = ~ quantile(., probs = .05), 
+    numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
                   mean = mean,
                   p95 = ~ quantile(., probs = .95)), 
     append = FALSE)
@@ -103,8 +211,8 @@ cdc_srvyr_create_table_free <- function(data,
 }
 
 # # reproducible example 01
-# tidy_result <- seroprevalence_posterior(positive_number_test = 16,
-#                                         total_number_test = 16+84,
+# tidy_result <- seroprevalence_posterior(positive_number_test = positive_pop[1],
+#                                         total_number_test = positive_pop[1]+negative_pop[1],
 #                                         # sensitivity = 1,specificity = 1
 #                                         sensitivity = 0.93,
 #                                         specificity = 0.975
@@ -168,22 +276,42 @@ cdc_srvyr_create_table_free <- function(data,
 #   select(estim_tab:fused_tab)
 
 
-# _ unknown ---------------------------------------------------------------
+# . -----------------------------------------------------------------------
+
+
+# _ UNKNOWN performance ---------------------------------------------------------------
 
 # reproducible example 04
-# result_u <- sample_posterior_r_mcmc_testun(samps = 10000,
-#                                # posi = 321,ni = 321+1234,
-#                                # posi = 16,ni = 16+84,
-#                                pos = 321,n = 321+1234,
-#                                # tp = 670,tn = 640,fp = 202,fn = 74
-#                                tp = 30,tn = 50,fp = 0,fn = 0
-#                                )
-# 
-# result_u %>% 
-#   as_tibble() %>% 
-#     ggplot(aes(x = r)) +
-#     geom_histogram(aes(y=..density..),binwidth = 0.005) +
-#     geom_density()
+result_unk <- sample_posterior_r_mcmc_testun(samps = 10000,
+                                           #in population
+                                           pos = positive_pop[1], #positive
+                                           n = negative_pop[1], #negatives
+                                           # in lab
+                                           # tp = 30,tn = 50,fp = 0,fn = 0
+                                           tp = 670,tn = 640,fp = 202,fn = 74
+)
+
+result_unk %>%
+  as_tibble() %>%
+  skim()
+
+result_unk %>%
+  as_tibble() %>%
+    ggplot(aes(x = r)) +
+    geom_histogram(aes(y=..density..),binwidth = 0.005) +
+    geom_density()
+
+result_unk %>%
+  as_tibble() %>%
+  rownames_to_column() %>%
+  pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
+  ggplot(aes(x = values)) +
+  geom_histogram(aes(y=..density..),binwidth = 0.005) +
+  geom_density() +
+  facet_grid(~estimates,scales = "free_x")
+
+# . -------------------------------------------------------------------------
+# . -------------------------------------------------------------------------
 
 # diggle method 2011 ------------------------------------------------------
 # this is for unknown Se or Sp

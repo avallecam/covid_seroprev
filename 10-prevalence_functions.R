@@ -168,7 +168,9 @@ riesgo_extend_na <- function(variable,referencia) {
 #   count(riesgo,condicion_riesgo_diabetes)
 
 
+#' 
 #' inspiracion
+#' 
 #' https://github.com/gergness/srvyr/issues/13
 #' 
 #' ejemplo
