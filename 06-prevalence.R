@@ -17,6 +17,8 @@
 #' (x) mapa con dos capas de label diris
 #' (x) ajustado por test performance: (sens 0.9694 | spec 0.9574)
 #' (-) reproduce gelman adjustment approach!
+#' (x) add deff
+#' (x) add s.e. on outputs - usable in prev correction methods
 
 
 library(tidyverse)
@@ -208,6 +210,10 @@ raw_prop_table
 
 # ___________ -------------------------------------------------------------
 
+uu_clean_data %>% 
+  select(sintomas_cualquier_momento_cat) %>% 
+  mutate(sintomas_cualquier_momento_cat=labelled::to_labelled(sintomas_cualquier_momento_cat)) %>% 
+  count(sintomas_cualquier_momento_cat)
 
 # SELECT COVARIATES -------------------------------------------------------
 
@@ -278,6 +284,13 @@ uu_clean_data %>% count(CONGLOMERADO,VIVIENDA)
 # diseño muestral de la encuesta ---------------------------------
 
 design <- uu_clean_data %>% 
+  # mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
+  #           .funs = labelled::to_labelled) %>%
+  # mutate_at(.vars = vars(covariate_list),
+  #           .funs = ~labelled::to_labelled(as.factor(.x))) %>%
+  # mutate(sintomas_cualquier_momento_cat=as.numeric(sintomas_cualquier_momento_cat)) %>% 
+  # select(sintomas_cualquier_momento_cat,ig_clasificacion=ig_clasificacion_num,
+  #        factorfinal,CONGLOMERADO,VIVIENDA,ESTRATO,PONDERACION) %>% 
   
   filter(!is.na(ig_clasificacion)) %>% #CRITICAL! ON OUTCOME
   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
@@ -301,6 +314,22 @@ cdc_srvyr_prevalence_numerator_denominator(design = design,
 cdc_srvyr_prevalence_numerator_denominator(design = design,
                                            denominator = ig_clasificacion,
                                            numerator = sintomas_cualquier_momento_cat)
+
+cdc_srvyr_prevalence_numerator_denominator(design = design,
+                                           denominator = edad_decenios,
+                                           numerator = ig_clasificacion)
+
+cdc_survey_proportion(design = design,
+                      denominator = sintomas_cualquier_momento_cat,
+                      numerator = ig_clasificacion)
+
+cdc_survey_proportion(design = design,
+                      denominator = ig_clasificacion,
+                      numerator = sintomas_cualquier_momento_cat)
+
+cdc_survey_proportion(design = design,
+                      denominator = edad_decenios,
+                      numerator = ig_clasificacion)
 
 # 01_general ----------------------------------------------------------------
 
