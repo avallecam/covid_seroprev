@@ -348,6 +348,7 @@ seroprevalence_posterior_unk <- function(positive_number_test,
   my_skim <- skim_with(
     numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
                   mean = mean,
+                  p50 = ~ quantile(., probs = .50),
                   p95 = ~ quantile(., probs = .95)), 
     append = FALSE)
   
@@ -379,8 +380,10 @@ seroprevalence_posterior_unk <- function(positive_number_test,
 #                                              false_positive = 202,
 #                                              false_negative = 74)
 # 
-# result_unk_x %>% 
+# result_unk_x %>%
 #   unnest(summary)
+# result_unk_x %>%
+#   unnest(performance)
 # 
 # result_unk_x %>% 
 #   unnest(posterior) %>%
