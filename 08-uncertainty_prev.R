@@ -6,15 +6,20 @@ library(tictoc)
 
 set.seed(33)
 
-sensitivity = 0.93
-specificity = 0.975
-positive_pop <- c(321, 123, 100, 10)
-negative_pop <- c(1234, 500, 375, 30)
+# METHODS -----------------------------------------------------------------
+
+
+# input for reproducible examples
+
+# sensitivity = 0.93
+# specificity = 0.975
+# positive_pop <- c(321, 123, 100, 10)
+# negative_pop <- c(1234, 500, 375, 30)
 
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------
 
-# rogan-glanden estimator 1978 --------------------------------------------
+# 01 rogan-glanden estimator 1978 --------------------------------------------
 #' from
 #' https://github.com/sakitakahashi/COVID-sensitivity
 #' 
@@ -38,24 +43,26 @@ rogan_gladen_stderr_unk <- function(prev.obs, stderr.obs, prev.tru, Se, Sp, n_Se
 # https://stackoverflow.com/questions/17802320/r-proportion-confidence-interval-factor
 # https://stackoverflow.com/questions/21719578/confidence-interval-for-binomial-data-in-r
 
-tibble(positive=positive_pop,
-       negative=negative_pop) %>% 
-  mutate(total=positive+negative,
-         prev_app=positive_pop/(positive_pop+negative_pop),
-         # assumes random sample from large population
-         stde_app=sqrt(prev_app * (1 - prev_app)/(total))) %>% 
-  mutate(prev_tru=rogan_gladen_estimator(prev.obs = prev_app,
-                                  Se = 0.90,
-                                  Sp = 0.76),
-         stde_tru=rogan_gladen_stderr_unk(prev.obs = prev_app,
-                                          prev.tru = prev_tru,
-                                          stderr.obs = stde_app,
-                                          Se = 0.90,
-                                          Sp = 0.76,
-                                          n_Se = 1586,
-                                          n_Sp = 1586)) %>% 
-  mutate(prev_tru_low=prev_tru-qnorm(0.975)*stde_tru,
-         prev_tru_upp=prev_tru+qnorm(0.975)*stde_tru)
+# # reproducible example 88
+# 
+# tibble(positive=positive_pop,
+#        negative=negative_pop) %>% 
+#   mutate(total=positive+negative,
+#          prev_app=positive_pop/(positive_pop+negative_pop),
+#          # assumes random sample from large population
+#          stde_app=sqrt(prev_app * (1 - prev_app)/(total))) %>% 
+#   mutate(prev_tru=rogan_gladen_estimator(prev.obs = prev_app,
+#                                   Se = 0.90,
+#                                   Sp = 0.76),
+#          stde_tru=rogan_gladen_stderr_unk(prev.obs = prev_app,
+#                                           prev.tru = prev_tru,
+#                                           stderr.obs = stde_app,
+#                                           Se = 0.90,
+#                                           Sp = 0.76,
+#                                           n_Se = 1586,
+#                                           n_Sp = 1586)) %>% 
+#   mutate(prev_tru_low=prev_tru-qnorm(0.975)*stde_tru,
+#          prev_tru_upp=prev_tru+qnorm(0.975)*stde_tru)
 
 # # reproducible example 00
 # tibble(
@@ -72,7 +79,7 @@ tibble(positive=positive_pop,
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------
 
-# larremorre method 2020 --------------------------------------------------
+# 02 larremorre method 2020 --------------------------------------------------
 
 # . -----------------------------------------------------------------------
 
@@ -281,39 +288,115 @@ cdc_srvyr_create_table_free <- function(data,
 
 # _ UNKNOWN performance ---------------------------------------------------------------
 
-# reproducible example 04
-result_unk <- sample_posterior_r_mcmc_testun(samps = 10000,
+# # reproducible example 04
+# result_unk <- sample_posterior_r_mcmc_testun(samps = 10000,
+#                                            #in population
+#                                            pos = positive_pop[1], #positive
+#                                            n = negative_pop[1], #negatives
+#                                            # in lab
+#                                            # tp = 30,tn = 50,fp = 0,fn = 0
+#                                            tp = 670,tn = 640,fp = 202,fn = 74
+# )
+
+# # reproducible example YY
+# 
+# result_unk %>%
+#   as_tibble() %>%
+#   skim()
+# 
+# result_unk %>%
+#   as_tibble() %>%
+#     ggplot(aes(x = r)) +
+#     geom_histogram(aes(y=..density..),binwidth = 0.005) +
+#     geom_density()
+# 
+# result_unk %>%
+#   as_tibble() %>%
+#   rownames_to_column() %>%
+#   pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
+#   ggplot(aes(x = values)) +
+#   geom_histogram(aes(y=..density..),binwidth = 0.005) +
+#   geom_density() +
+#   facet_grid(~estimates,scales = "free_x")
+
+seroprevalence_posterior_unk <- function(positive_number_test,
+                                     total_number_test,
+                                     true_positive,
+                                     true_negative,
+                                     false_positive,
+                                     false_negative) {
+  
+  negative_number_test <- total_number_test - positive_number_test
+  
+  pos <- positive_number_test
+  neg <- negative_number_test
+  tp <- true_positive
+  tn <- true_negative
+  fp <- false_positive
+  fn <- false_negative
+  
+  result <- sample_posterior_r_mcmc_testun(samps = 10000,
                                            #in population
-                                           pos = positive_pop[1], #positive
-                                           n = negative_pop[1], #negatives
+                                           pos = pos, #positive
+                                           n = neg, #negatives
                                            # in lab
-                                           # tp = 30,tn = 50,fp = 0,fn = 0
-                                           tp = 670,tn = 640,fp = 202,fn = 74
-)
+                                           tp = tp,tn = tn,
+                                           fp = fp,fn = fn
+  ) %>% 
+    as_tibble()
+  
+  my_skim <- skim_with(
+    numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
+                  mean = mean,
+                  p95 = ~ quantile(., probs = .95)), 
+    append = FALSE)
+  
+  result_sum <- result %>% 
+    my_skim() %>% 
+    as_tibble() %>% 
+    filter(skim_variable=="r") %>% 
+    select(skim_variable,numeric.p05:numeric.p95)
+  
+  performance_sum <- result %>% 
+    my_skim() %>% 
+    as_tibble() %>% 
+    filter(!(skim_variable=="r")) %>% 
+    select(skim_variable,numeric.p05:numeric.p95)
+  
+  output <- tibble(
+    posterior=list(result),
+    summary=list(result_sum),
+    performance=list(performance_sum)
+  )
+}
 
-result_unk %>%
-  as_tibble() %>%
-  skim()
-
-result_unk %>%
-  as_tibble() %>%
-    ggplot(aes(x = r)) +
-    geom_histogram(aes(y=..density..),binwidth = 0.005) +
-    geom_density()
-
-result_unk %>%
-  as_tibble() %>%
-  rownames_to_column() %>%
-  pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
-  ggplot(aes(x = values)) +
-  geom_histogram(aes(y=..density..),binwidth = 0.005) +
-  geom_density() +
-  facet_grid(~estimates,scales = "free_x")
+# # reproducible example xx
+# 
+# result_unk_x <- seroprevalence_posterior_unk(positive_number_test = positive_pop[1],
+#                                              total_number_test = positive_pop[1]+negative_pop[1],
+#                                              true_positive = 670,
+#                                              true_negative = 640,
+#                                              false_positive = 202,
+#                                              false_negative = 74)
+# 
+# result_unk_x %>% 
+#   unnest(summary)
+# 
+# result_unk_x %>% 
+#   unnest(posterior) %>%
+#   as_tibble() %>%
+#   rownames_to_column() %>%
+#   select(-summary) %>% 
+#   pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
+#   ggplot(aes(x = values)) +
+#   geom_histogram(aes(y=..density..),binwidth = 0.005) +
+#   geom_density() +
+#   facet_grid(~estimates,scales = "free_x")
 
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------
 
-# diggle method 2011 ------------------------------------------------------
+# 03 diggle method 2011 ------------------------------------------------------
 # this is for unknown Se or Sp
 #' limitation: 
 #' requires more theta for higher number of test performed
