@@ -86,12 +86,12 @@ cdc_srvyr_prevalence_outcome <- function(design,outcome) {
     # filter(!is.na({{covariate}})) %>% 
     # group_by({{covariate}},{{outcome}}) %>% #group_by
     group_by({{outcome}}) %>% #group_by
-    summarize(proportion = survey_mean(vartype = c("ci","cv"),
-                                       #proportion = TRUE,
+    summarize(proportion = survey_mean(vartype = c("ci","cv","se"),
+                                       # proportion = TRUE,
                                        deff = TRUE,
                                        prop_method = "logit"
                                        ),
-              total = survey_total(vartype = c("ci","cv")),
+              total = survey_total(vartype = c("ci","cv","se")),
               n = unweighted(n())
     ) %>% 
     # group_by({{covariate}}) %>% #group_by
@@ -213,9 +213,9 @@ srvyr_prop_step_01 <- function(design,numerator,denominator) {
 #                      denominator = stype)
 
 srvyr_prop_step_02 <- function(design = design,
-                                 numerator = awards,
-                                 denominator = stype,
-                                 numerator_level) {
+                               numerator = awards,
+                               denominator = stype,
+                               numerator_level) {
   design %>% 
     filter(!is.na({{numerator}})) %>%
     filter(!is.na({{denominator}})) %>%
@@ -225,7 +225,10 @@ srvyr_prop_step_02 <- function(design = design,
                                  prop_method = "logit",
                                  vartype = c("ci","cv","se")
     ),
-    total = survey_total(vartype = c("ci","cv","se")),
+    total = survey_total({{numerator}} == numerator_level, 
+                         proportion = TRUE,
+                         prop_method = "logit",
+                         vartype = c("ci","cv","se")),
     n = unweighted(n())) %>%
     rename_at(.vars = vars(1),
               .funs = str_replace,"(.+)","denominator_level")
