@@ -212,9 +212,9 @@ srvyr_prop_step_01 <- function(design,numerator,denominator) {
 #                      numerator = awards,
 #                      denominator = stype)
 
-srvyr_prop_step_02 <- function(design = design,
-                               numerator = awards,
-                               denominator = stype,
+srvyr_prop_step_02 <- function(design,
+                               numerator,
+                               denominator,
                                numerator_level) {
   design %>% 
     filter(!is.na({{numerator}})) %>%
