@@ -5,3 +5,6 @@
 indicadores_incompletos.R
 05-explore.R
 07-retorno_ins.R
+99-test_area.R
+47_perdidos.R
+*.Rhistory
