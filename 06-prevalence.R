@@ -5,20 +5,12 @@
 #' write_rds("data/uu_clean_data.rds")
 #' 
 #' PENDIENTES:
-#' (x) revisar eliminación de distritos
-#' (x) revisar diseño en seteo
-#' (x) pasar limpieza total a 01-clean.R
-#' 
-#' PENDIENTE
-#' (x) proporcion cruda
-#' (x) ajustado por ponderacion poblacional
-#' (x) retirar cv (diferencias no analizables) pero da certeza de la inferencia
-#' (x) crear grafico solo de edades. tabla con valores puntuales generales y sexo
-#' (x) mapa con dos capas de label diris
-#' (x) ajustado por test performance: (sens 0.9694 | spec 0.9574)
-#' (-) reproduce gelman adjustment approach!
-#' (x) add deff
-#' (x) add s.e. on outputs - usable in prev correction methods
+#' (x) ¿cómo podemos usar la proporción para proyectar la cantidad de positivos y engativos expandida?
+#' (x) agrupa de 80 años a más + para decenios y eliminar 
+#' ( ) actualizar flujo con nuevas funciones (proportion = TRUE)
+#' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
+#' ( ) recover results from RAW n, p, t group_by(denominator,numerator)
+#' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 
 library(tidyverse)
@@ -39,6 +31,7 @@ source("08-uncertainty_prev.R")
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
+  mutate(survey_all="survey_all") %>% 
   # transformar a factor (prevlaencia ajustada)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
@@ -195,7 +188,7 @@ raw_prop_table <- uu_clean_data %>%
     raw_obse=n(),
     raw_prop=ci.binom(value)[1],
     raw_lowc=ci.binom(value)[2],
-    raw_uppc=ci.binom(value)[3]#,
+    raw_uppc=ci.binom(value)[3],
     raw_semc=ci.binom(value)[3]
   ) %>% 
   cdc_srvyr_create_table_free(estim_var = raw_prop,
@@ -307,21 +300,25 @@ design <- uu_clean_data %>%
 #' ejemplos
 #' 1. fraccion de positivos en cada grupo de sinto, oligo, asinto
 #' 2. fraccion de sinto, oligo, asinto en el grupo de positivos o negativos
-cdc_srvyr_prevalence_numerator_denominator(design = design,
-                                           denominator = sintomas_cualquier_momento_cat,
-                                           numerator = ig_clasificacion)
-
-cdc_srvyr_prevalence_numerator_denominator(design = design,
-                                           denominator = ig_clasificacion,
-                                           numerator = sintomas_cualquier_momento_cat)
-
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = sintomas_cualquier_momento_cat,
+#                                            numerator = ig_clasificacion) %>% 
+#   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
+# 
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = ig_clasificacion,
+#                                            numerator = sintomas_cualquier_momento_cat) %>% 
+#   glimpse()
+# 
 cdc_srvyr_prevalence_numerator_denominator(design = design,
                                            denominator = edad_decenios,
-                                           numerator = ig_clasificacion)
+                                           numerator = ig_clasificacion) %>% 
+  select(-ends_with("_cv"),-ends_with("_deff"))
 
 cdc_survey_proportion(design = design,
                       denominator = sintomas_cualquier_momento_cat,
-                      numerator = ig_clasificacion)
+                      numerator = ig_clasificacion) %>% 
+  select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
 
 cdc_survey_proportion(design = design,
                       denominator = ig_clasificacion,
@@ -331,11 +328,16 @@ cdc_survey_proportion(design = design,
                       denominator = edad_decenios,
                       numerator = ig_clasificacion)
 
+cdc_survey_proportion(design = design,
+                      denominator = survey_all,
+                      numerator = ig_clasificacion) %>% 
+  summarise_at(.vars = vars(starts_with("total")),.funs = sum)
+
 # 01_general ----------------------------------------------------------------
 
 out0101 <- cdc_srvyr_prevalence_outcome(design = design,
                                         outcome = ig_clasificacion)
-out0101
+out0101 %>% glimpse()
 
 # 02_espacial: diris ----------------------------------------------------------------
 

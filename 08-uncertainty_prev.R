@@ -91,64 +91,60 @@ source("covid_serological_sampling.R")
 
 # __ ONE-POP -----------------------------------------------------------------
 
-# reproduce this
-# https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_onepopulation_workbook.ipynb
-
-result_one <- sample_posterior_r_mcmc_hyperR(samps = 10000,
-                                             posi = positive_pop[1],
-                                             ni = negative_pop[1],
-                                             # se = sensitivity,
-                                             # sp = specificity,
-                                             se = 0.977,
-                                             sp = 0.986,
-                                             gam0 = 150
-)
-
-result_one %>% 
-  as_tibble()
-
-result_one %>% 
-  skim()
-
-result_one %>% 
-  as_tibble() %>% 
-  ggplot(aes(x = r1)) +
-  geom_histogram(aes(y=..density..),binwidth = 0.005)
+# # reproduce this
+# # https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_onepopulation_workbook.ipynb
+# 
+# result_one <- sample_posterior_r_mcmc_hyperR(samps = 10000,
+#                                              posi = positive_pop[1],
+#                                              ni = negative_pop[1],
+#                                              # se = sensitivity,
+#                                              # sp = specificity,
+#                                              se = 0.977,
+#                                              sp = 0.986,
+#                                              gam0 = 150
+# )
+# 
+# # reproducible example 00
+# result_one %>% 
+#   as_tibble()
+# 
+# result_one %>% 
+#   skim()
+# 
+# result_one %>% 
+#   as_tibble() %>% 
+#   ggplot(aes(x = r1)) +
+#   geom_histogram(aes(y=..density..),binwidth = 0.005)
 
 # __ SUB-POPS --------------------------------------------------------------
 
-# reproduce this
-# https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_subpopulations_workbook.ipynb
-
-result_sub <- sample_posterior_r_mcmc_hyperR(samps = 10000,
-                                         posi = positive_pop,
-                                         ni = positive_pop+negative_pop,
-                                         se = sensitivity,
-                                         sp = specificity,
-                                         # se = 0.977,
-                                         # sp = 0.986,
-                                         gam0 = 150
-                                         )
-
-result_sub %>% 
-  as_tibble()
-
-result_sub %>% 
-  skim()
-
-result_sub %>% 
-  as_tibble() %>% 
-  rownames_to_column() %>% 
-  select(-gam) %>% 
-  pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
-  ggplot(aes(x = values, color = estimates)) +
-  geom_density()
-  # ggplot() +
-  # geom_density(aes(x = r)) +
-  # geom_density(aes(x = r1)) +
-  # geom_density(aes(x = r2)) +
-  # geom_density(aes(x = r3)) +
-  # geom_density(aes(x = r4))
+# # reproduce this
+# # https://github.com/LarremoreLab/covid_serological_sampling/blob/master/codebase/prevalence_subpopulations_workbook.ipynb
+# 
+# result_sub <- sample_posterior_r_mcmc_hyperR(samps = 10000,
+#                                          posi = positive_pop,
+#                                          ni = positive_pop+negative_pop,
+#                                          se = sensitivity,
+#                                          sp = specificity,
+#                                          # se = 0.977,
+#                                          # sp = 0.986,
+#                                          gam0 = 150
+#                                          )
+# 
+# # reproducible example
+# result_sub %>% 
+#   as_tibble()
+# 
+# result_sub %>% 
+#   skim()
+# 
+# result_sub %>% 
+#   as_tibble() %>% 
+#   rownames_to_column() %>% 
+#   select(-gam) %>% 
+#   pivot_longer(cols = -rowname,names_to = "estimates",values_to = "values") %>%
+#   ggplot(aes(x = values, color = estimates)) +
+#   geom_density()
 
 # . -----------------------------------------------------------------------
 

@@ -172,6 +172,7 @@ riesgo_extend_na <- function(variable,referencia) {
 #' inspiracion
 #' 
 #' https://github.com/gergness/srvyr/issues/13
+#' solution: https://github.com/gergness/srvyr/issues/13#issuecomment-321407979
 #' 
 #' ejemplo
 #' 
@@ -216,20 +217,33 @@ srvyr_prop_step_02 <- function(design,
                                numerator,
                                denominator,
                                numerator_level) {
+  
   design %>% 
     filter(!is.na({{numerator}})) %>%
     filter(!is.na({{denominator}})) %>%
     group_by({{denominator}}) %>%
-    summarize(prop = survey_mean({{numerator}} == numerator_level, 
-                                 proportion = TRUE,
-                                 prop_method = "logit",
-                                 vartype = c("ci","cv","se")
-    ),
-    total = survey_total({{numerator}} == numerator_level, 
+    summarize(
+      prop = survey_mean({{numerator}} == numerator_level, 
                          proportion = TRUE,
                          prop_method = "logit",
-                         vartype = c("ci","cv","se")),
-    n = unweighted(n())) %>%
+                         vartype = c("ci","cv","se")
+      ),
+      total = survey_total({{numerator}} == numerator_level, 
+                           # proportion = TRUE,
+                           # prop_method = "logit",
+                           deff = TRUE,
+                           vartype = c("ci","cv","se"))#,
+      # n = unweighted(n()),
+      # nx = unweighted(length(na.omit({{numerator}})))
+      ) %>%
+    # ungroup() %>%
+    # group_by({{denominator}},{{numerator}}) %>%
+    # mutate(
+    #   # p = prop.table(n),
+    #   # t = sum(n),
+    #   # sum_total = sum(total)
+    #   ) %>%
+    ungroup() %>%
     rename_at(.vars = vars(1),
               .funs = str_replace,"(.+)","denominator_level")
   # mutate(awards = cn)
@@ -257,7 +271,8 @@ cdc_survey_proportion <- function(design,numerator,denominator) {
     unnest(resultado) %>% 
     select(-design) %>% 
     mutate_if(.predicate = is.list,.funs = as.character) %>% 
-    select(denominator,denominator_level,numerator,numerator_level,everything())
+    select(denominator,denominator_level,numerator,numerator_level,everything()) %>% 
+    arrange(denominator_level,numerator_level)
 }
 
 # cdc_survey_proportion(design = dstrata,
