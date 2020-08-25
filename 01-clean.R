@@ -815,13 +815,13 @@ uu_raw_data %>%
   select(dni,nombre_completo,`_index`) %>% 
   filter(is.na(dni))
 
-pp_raw_data %>% 
-  select(nombres,apellido_paterno,apellido_materno,`_index`,`_parent_index`) %>% 
-  filter(`_index`==1467)
+# pp_raw_data %>% 
+#   select(nombres,apellido_paterno,apellido_materno,`_index`,`_parent_index`) %>% 
+#   filter(`_index`==____)
 
-hh_raw_data %>% 
-  select(`_index`,conglomerado,numero_vivienda) %>% 
-  filter(`_index`==372)
+# hh_raw_data %>% 
+#   select(`_index`,conglomerado,numero_vivienda) %>% 
+#   filter(`_index`==___)
 
 # [*] conteo ESP vs OBS --------------------------------------------
 
@@ -834,7 +834,7 @@ uu_raw_data %>%
   select(nm_dist,cd_dist,conglomerado,numero_vivienda,
          #numero_hogar,
          participante,nro_convivientes,n_registros_vv) %>% 
-  naniar::miss_var_summary()
+  # naniar::miss_var_summary()
   # group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,participante) %>% 
   group_by(nm_dist,cd_dist,conglomerado,numero_vivienda,
            participante,nro_convivientes) %>% 
@@ -946,8 +946,8 @@ distrito_conglomerado_nro_viviendas %>%
 
 # ___ save counting -------------------------------------------------------
 
-distrito_conglomerado_nro_viviendas %>% 
-  write_rds()
+# distrito_conglomerado_nro_viviendas %>% 
+#   write_rds()
 
 # ___ continuacion --------------------------------------------------------
 
@@ -1406,7 +1406,14 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   
   #' [contacto]
   
-  select(-contacto_gripal)
+  select(-contacto_gripal) %>% 
+  
+  #' [error por exceso de restricción en instrumento]
+  
+  mutate(prueba_previa=case_when(
+    telefono=="999999999" & str_starts(codigo_err,"MAR|kev") ~ NA_character_,
+    TRUE ~ prueba_previa
+  ))
 
 
 # _ pre step --------------------------------------------------------------
