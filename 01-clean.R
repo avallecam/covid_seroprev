@@ -624,7 +624,14 @@ uu_raw_data_prelab <- left_join(pp_raw_data, #3239 X 175
   
   #create age categories
   mutate(edad=as.numeric(edad)) %>% 
-  cdcper::cdc_edades_peru(edad)
+  cdcper::cdc_edades_peru(edad) %>% 
+  # collapse the last two categories 
+  # due to low number of observations
+  # original distribution:
+  # [80,90)          96
+  # [90,100)         21
+  mutate(edad_decenios=fct_collapse(edad_decenios,
+                                    "[80,100)"=c("[80,90)","[90,100)")))
 
 
 uu_raw_data_prelab %>% 
@@ -632,6 +639,14 @@ uu_raw_data_prelab %>%
 
 uu_raw_data_prelab %>%
   filter(is.na(conglomerado)) %>% dim()
+
+uu_raw_data_prelab %>% 
+  # skimr::skim(edad)
+  # select(starts_with("edad"))
+  # count(edad_decenios)
+  select(edad,edad_decenios) %>% 
+  # filter(is.na(edad_decenios))
+  count(edad_decenios)
 
 # ________ ----------------------------------------------------------------
 
@@ -1408,8 +1423,8 @@ uu_clean_data <- uu_clean_data_pre %>% #3224
   mutate(ig_clasificacion=as.character(ig_clasificacion)) %>% 
   filter(ig_clasificacion!="missing") %>% #3212
   # filter by age availability - clean estimations
-  filter(!is.na(edad)) %>% 
-  filter(edad_decenios!="[100,Inf]") #3212
+  filter(!is.na(edad)) #%>% 
+  # filter(edad_decenios!="[100,Inf]") #3212
 
 # _ WRITE clean data --------------------------------------------------------
 
