@@ -9,7 +9,7 @@
 #' (x) agrupa de 80 años a más + para decenios y eliminar 
 #' ( ) actualizar flujo con nuevas funciones (proportion = TRUE)
 #' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
-#' ( ) recover results from RAW n, p, t group_by(denominator,numerator)
+#' (x) recover results from RAW n, p, t group_by(denominator,numerator)
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 
@@ -310,10 +310,10 @@ design <- uu_clean_data %>%
 #                                            numerator = sintomas_cualquier_momento_cat) %>% 
 #   glimpse()
 # 
-cdc_srvyr_prevalence_numerator_denominator(design = design,
-                                           denominator = edad_decenios,
-                                           numerator = ig_clasificacion) %>% 
-  select(-ends_with("_cv"),-ends_with("_deff"))
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = edad_decenios,
+#                                            numerator = ig_clasificacion) %>% 
+#   select(-ends_with("_cv"),-ends_with("_deff"))
 
 cdc_survey_proportion(design = design,
                       denominator = sintomas_cualquier_momento_cat,
@@ -331,7 +331,8 @@ cdc_survey_proportion(design = design,
 cdc_survey_proportion(design = design,
                       denominator = survey_all,
                       numerator = ig_clasificacion) %>% 
-  summarise_at(.vars = vars(starts_with("total")),.funs = sum)
+  glimpse()
+  # summarise_at(.vars = vars(starts_with("total")),.funs = sum)
 
 # 01_general ----------------------------------------------------------------
 

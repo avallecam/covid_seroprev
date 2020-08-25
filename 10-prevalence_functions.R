@@ -236,13 +236,6 @@ srvyr_prop_step_02 <- function(design,
       # n = unweighted(n()),
       # nx = unweighted(length(na.omit({{numerator}})))
       ) %>%
-    # ungroup() %>%
-    # group_by({{denominator}},{{numerator}}) %>%
-    # mutate(
-    #   # p = prop.table(n),
-    #   # t = sum(n),
-    #   # sum_total = sum(total)
-    #   ) %>%
     ungroup() %>%
     rename_at(.vars = vars(1),
               .funs = str_replace,"(.+)","denominator_level")
@@ -259,20 +252,72 @@ srvyr_prop_step_02 <- function(design,
 #                        .f = srvyr_prop_step_02)) %>% 
 #   unnest(resultado)
 
+srvyr_prop_step_03 <- function(design,
+                               numerator,
+                               denominator) {
+  # create the raw estimates
+  design %>% 
+    as_tibble() %>% 
+    group_by({{denominator}},{{numerator}}) %>% 
+    summarise(n=n()) %>% 
+    ungroup() %>% 
+    group_by({{denominator}}) %>% 
+    mutate(
+      p = prop.table(n),
+      t = sum(n)#,
+      # sum_total = sum(total)
+    ) %>%
+    ungroup()
+}
+
+# srvyr_prop_step_01(design = dstrata,
+#                      numerator = awards,
+#                      denominator = stype) %>%
+#   mutate(resultado=pmap(.l = select(.,design=design,
+#                                     numerator = numerator,
+#                                     denominator = denominator,
+#                                     numerator_level=numerator_level),
+#                        .f = srvyr_prop_step_02)) %>%
+#   unnest(resultado) %>% 
+#   mutate(crudo=pmap(.l = select(.,design=design,
+#                                 numerator=numerator,
+#                                 denominator=denominator),
+#                     .f = srvyr_prop_step_03)) %>% 
+#   unnest(crudo) %>% 
+#   select(-design:-numerator) %>% 
+#   filter(numerator_level==awards & denominator_level==stype)
+
 cdc_survey_proportion <- function(design,numerator,denominator) {
   srvyr_prop_step_01({{design}},
                        {{numerator}},
                        {{denominator}}) %>% 
+    
     mutate(resultado=pmap(.l = select(.,design=design,
                                       numerator = numerator,
                                       denominator = denominator,
                                       numerator_level=numerator_level),
                           .f = srvyr_prop_step_02)) %>% 
     unnest(resultado) %>% 
+    
+    mutate(crudo=pmap(.l = select(.,design=design,
+                                  numerator=numerator,
+                                  denominator=denominator),
+                      .f = srvyr_prop_step_03)) %>% 
+    unnest(crudo) %>% 
+    filter(numerator_level=={{numerator}} & denominator_level=={{denominator}}) %>% 
+    select(-{{numerator}},-{{denominator}}) %>% 
+    
     select(-design) %>% 
     mutate_if(.predicate = is.list,.funs = as.character) %>% 
     select(denominator,denominator_level,numerator,numerator_level,everything()) %>% 
-    arrange(denominator_level,numerator_level)
+    arrange(denominator_level,numerator_level) %>% 
+    group_by(denominator_level) %>%
+    mutate(
+      # p = prop.table(n),
+      # t = sum(n),
+      sum_total = sum(total)
+    ) %>%
+    ungroup()
 }
 
 # cdc_survey_proportion(design = dstrata,
