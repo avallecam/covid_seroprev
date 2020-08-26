@@ -76,6 +76,28 @@ rogan_gladen_stderr_unk <- function(prev.obs, stderr.obs, prev.tru, Se, Sp, n_Se
 #   mutate(adjust=pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
 #   # mutate(adjust=future_pmap_dbl(.l = select(.,prev.obs=raw, Se=se, Sp=sp),.f = rogan_gladen_estimator))
 
+#' FROM
+#' https://github.com/HopkinsIDD/Bangladesh-Cholera-Serosurvey/blob/fa53ec36649628dd0ee683b36d3e5dd719aef7e2/source/utils.R
+#' 
+
+## corrects num positive by sens and spec
+correct_sero_misclass <- function(num_pos,num_neg,sens=.806,spec=.83){
+  pmax((num_pos + (num_pos+num_neg)*(spec -1)) / (sens + spec - 1),0)
+}
+
+## takes known sensitivity and specificity of test
+## and returns proportion of sample that 'true' positive
+##' @param p_A - proportion of positives by imperfect test
+##' @param N - number tested
+##' @param sens - senstivitity
+##' @param spec - specifcity
+##' @return numeric vector
+correct_sero_misclass_p <- function(p_A,sens=.891,spec=.792){
+  pmin(pmax((p_A + (spec-1))/(sens+spec -1),0),1)
+}
+
+# correct_sero_misclass_p(p_A = 0.74)
+
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------
 

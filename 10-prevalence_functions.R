@@ -1,5 +1,7 @@
 library(tidyverse)
 
+# create output tables ----------------------------------------------------
+
 tidy_srvyr_tibble <- function(data) {
   data %>% 
     mutate(covariate=colnames(.)[1]) %>% 
@@ -68,6 +70,8 @@ cdc_srvyr_create_table_02 <- function(data,
   # select(-starts_with("proportion"),-ig_clasificacion)
 }
 
+# generate prevalence plots -----------------------------------------------
+
 ggplot_prevalence <- function(data) {
   data %>% 
     ggplot(aes(x = category,y = proportion,color=outcome,group=outcome)) +
@@ -80,6 +84,7 @@ ggplot_prevalence <- function(data) {
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 }
 
+# trials to use srvyr with purrr ------------------------------------------
 
 cdc_srvyr_prevalence_outcome <- function(design,outcome) {
   design %>%
@@ -144,9 +149,31 @@ cdc_srvyr_prevalence_numerator_denominator <- function(design,denominator,numera
     # filter({{numerator}}=="positivo")
 }
 
+# example
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = sintomas_cualquier_momento_cat,
+#                                            numerator = ig_clasificacion) %>% 
+#   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
+# 
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = ig_clasificacion,
+#                                            numerator = sintomas_cualquier_momento_cat) %>% 
+#   glimpse()
+# 
+# cdc_srvyr_prevalence_numerator_denominator(design = design,
+#                                            denominator = edad_decenios,
+#                                            numerator = ig_clasificacion) %>% 
+#   select(-ends_with("_cv"),-ends_with("_deff"))
+
+
+# this goes to avallecam --------------------------------------------------
+
 outcome_to_numeric <- function(variable) {
   as.numeric({{variable}})-1
 }
+
+# if quest1=No then quest2=NA ---------------------------------------------
+
 
 riesgo_extend_na <- function(variable,referencia) {
   case_when(
@@ -168,6 +195,10 @@ riesgo_extend_na <- function(variable,referencia) {
 #   count(riesgo,condicion_riesgo_diabetes)
 
 
+# proportion = TRUE -------------------------------------------------------
+
+
+
 #' 
 #' inspiracion
 #' 
@@ -181,6 +212,13 @@ riesgo_extend_na <- function(variable,referencia) {
 # library(survey)
 # data(api)
 # dstrata <- apistrat %>% as_survey_design(strata = stype, weights = pw)
+# dstrata2 <- apistrat %>% 
+#   mutate(pw2=1) %>% 
+#   as_survey_design(strata = stype, weights = pw2)
+# dstrata %>% 
+#   summarise(pct = survey_mean(awards=="Yes",proportion = TRUE))
+# dstrata2 %>% 
+#   summarise(pct = survey_mean(awards=="Yes",proportion = TRUE))
 #' 
 srvyr_prop_step_01 <- function(design,numerator,denominator) {
   
@@ -292,6 +330,7 @@ cdc_survey_proportion <- function(design,numerator,denominator) {
                        {{numerator}},
                        {{denominator}}) %>% 
     
+    # estimate proportion using sampling weight
     mutate(resultado=pmap(.l = select(.,design=design,
                                       numerator = numerator,
                                       denominator = denominator,
@@ -299,6 +338,16 @@ cdc_survey_proportion <- function(design,numerator,denominator) {
                           .f = srvyr_prop_step_02)) %>% 
     unnest(resultado) %>% 
     
+    # recover the denominator for each estimate
+    group_by(denominator_level) %>%
+    mutate(
+      total_den = 1*total/prop,
+      total_den_low = 1*total_low/prop_low,
+      total_den_upp = 1*total_upp/prop_upp
+    ) %>%
+    ungroup() %>% 
+    
+    # make raw unweighted estimates  
     mutate(crudo=pmap(.l = select(.,design=design,
                                   numerator=numerator,
                                   denominator=denominator),
@@ -307,17 +356,22 @@ cdc_survey_proportion <- function(design,numerator,denominator) {
     filter(numerator_level=={{numerator}} & denominator_level=={{denominator}}) %>% 
     select(-{{numerator}},-{{denominator}}) %>% 
     
+    # wrangling
     select(-design) %>% 
     mutate_if(.predicate = is.list,.funs = as.character) %>% 
     select(denominator,denominator_level,numerator,numerator_level,everything()) %>% 
     arrange(denominator_level,numerator_level) %>% 
-    group_by(denominator_level) %>%
-    mutate(
-      # p = prop.table(n),
-      # t = sum(n),
-      sum_total = sum(total)
-    ) %>%
-    ungroup()
+    
+    # exact binomial test for raw uncertainty
+    rename(raw_den=t,raw_num=n) %>% 
+    mutate(raw=pmap(.l = select(.,x=raw_num,n=raw_den),
+                    .f = binom.test),
+           raw=map(.x = raw,.f = broom::tidy)) %>% 
+    unnest(raw) %>% 
+    select(-statistic,-p.value,-parameter,-method,-alternative,-p) %>% 
+    rename(raw_prop=estimate,
+           raw_prop_low=conf.low,
+           raw_prop_upp=conf.high)
 }
 
 # cdc_survey_proportion(design = dstrata,
