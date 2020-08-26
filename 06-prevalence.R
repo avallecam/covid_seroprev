@@ -7,7 +7,8 @@
 #' PENDIENTES:
 #' (x) ¿cómo podemos usar la proporción para proyectar la cantidad de positivos y engativos expandida?
 #' (x) agrupa de 80 años a más + para decenios y eliminar 
-#' ( ) actualizar flujo con nuevas funciones (proportion = TRUE)
+#' (x) actualizar flujo con nuevas funciones (proportion = TRUE)
+#' ( ) denominador y numeradores pendientes [ver metodos de manuscrito]
 #' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
 #' (x) recover results from RAW n, p, t group_by(denominator,numerator)
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
@@ -31,7 +32,8 @@ source("08-uncertainty_prev.R")
 # inputs ------------------------------------------------------------------
 
 uu_clean_data <- read_rds("data/uu_clean_data.rds") %>% 
-  mutate(survey_all="survey_all") %>% 
+  mutate(survey_all="survey_all",
+         weight_nul=1) %>% 
   # transformar a factor (prevlaencia ajustada)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor) %>% 
@@ -47,11 +49,11 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
 
 # QC exposure | outcomes! ---------------------------------------------------------------
 
-read_rds("data/uu_clean_data.rds") %>% 
+uu_clean_data %>% 
   select(edad,sexo) %>% 
   naniar::miss_var_summary()
 
-read_rds("data/uu_clean_data.rds") %>% 
+uu_clean_data %>% 
   count(ig_clasificacion,convResultado,positividad_peru) %>% 
   avallecam::print_inf()
   
@@ -168,72 +170,37 @@ uu_clean_data %>%
   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
   compareGroups::export2xls("table/01-compareGroups-output-02.xls")
 
-# ________ ----------------------------------------------------------------
-
-
-# PROPORCION CRUDA --------------------------------------------------------
-
-# PENDIENTE: REPREX con cdcper dotwhiskes plot
-# usando .funs = funs("num"=outcome_to_numeric)
-# https://stackoverflow.com/questions/35953394/calculating-length-of-95-ci-using-dplyr
-
-library(moderndive)
-library(infer)
-library(gmodels)
-raw_prop_table <- uu_clean_data %>% 
-  select(rowname,ends_with("_num")) %>% 
-  pivot_longer(cols = -rowname,names_to = "outcome",values_to = "value") %>% 
-  group_by(outcome) %>% 
-  summarise(
-    raw_obse=n(),
-    raw_prop=ci.binom(value)[1],
-    raw_lowc=ci.binom(value)[2],
-    raw_uppc=ci.binom(value)[3],
-    raw_semc=ci.binom(value)[3]
-  ) %>% 
-  cdc_srvyr_create_table_free(estim_var = raw_prop,
-                              cilow_var = raw_lowc,
-                              ciupp_var = raw_uppc,
-                              cilow_digits = 3,
-                              ciupp_digits = 3) %>% 
-  select(-estim_tab,-cilow_tab,-ciupp_tab) %>% 
-  rename(raw_proportion_tab=fused_tab)
-
-raw_prop_table
 
 # ___________ -------------------------------------------------------------
-
-uu_clean_data %>% 
-  select(sintomas_cualquier_momento_cat) %>% 
-  mutate(sintomas_cualquier_momento_cat=labelled::to_labelled(sintomas_cualquier_momento_cat)) %>% 
-  count(sintomas_cualquier_momento_cat)
 
 # SELECT COVARIATES -------------------------------------------------------
 
 covariate_list <- uu_clean_data %>% 
-  select(sexo,
+  select(survey_all,
+         sexo,
          edad_etapas_de_vida_t,
-         # edad_decenios,
+         edad_decenios,
          # edad_quinquenal,
          diris,
-         pobreza_dico,
+         # pobreza_dico,
          hacinamiento,
          nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,
-         riesgo,
-         ends_with("_ext"),
-         -contains("ninguna"),
-         -contains("otro"),
-         -contains("salud"),
-         -contains("renal"),
-         -contains("60a"),
-         contacto_covid,
-         etnia_cat,
-         trabajo_reciente,
-         atencion,
-         seguro_salud,
-         prueba_previa) %>% 
+         # riesgo,
+         # ends_with("_ext"),
+         # -contains("ninguna"),
+         # -contains("otro"),
+         # -contains("salud"),
+         # -contains("renal"),
+         # -contains("60a"),
+         contacto_covid#,
+         # etnia_cat,
+         # trabajo_reciente,
+         # atencion,
+         # seguro_salud,
+         # prueba_previa
+         ) %>% 
   colnames()
 
 #' [sub-prevalencias]
@@ -265,6 +232,42 @@ covariate_list <- uu_clean_data %>%
 #' fecha_last_contacto
 #' seguro_salud
 
+# ________ ----------------------------------------------------------------
+
+
+# PROPORCION CRUDA --------------------------------------------------------
+
+#' replaced
+#' within proportion function
+
+# # PENDIENTE: REPREX con cdcper dotwhiskes plot
+# # usando .funs = funs("num"=outcome_to_numeric)
+# # https://stackoverflow.com/questions/35953394/calculating-length-of-95-ci-using-dplyr
+# 
+# library(moderndive)
+# library(infer)
+# library(gmodels)
+# raw_prop_table <- uu_clean_data %>% 
+#   select(rowname,ends_with("_num")) %>% 
+#   pivot_longer(cols = -rowname,names_to = "outcome",values_to = "value") %>% 
+#   group_by(outcome) %>% 
+#   summarise(
+#     raw_obse=n(),
+#     raw_prop=ci.binom(value)[1],
+#     raw_lowc=ci.binom(value)[2],
+#     raw_uppc=ci.binom(value)[3],
+#     raw_semc=ci.binom(value)[3]
+#   ) %>% 
+#   cdc_srvyr_create_table_free(estim_var = raw_prop,
+#                               cilow_var = raw_lowc,
+#                               ciupp_var = raw_uppc,
+#                               cilow_digits = 3,
+#                               ciupp_digits = 3) %>% 
+#   select(-estim_tab,-cilow_tab,-ciupp_tab) %>% 
+#   rename(raw_proportion_tab=fused_tab)
+# 
+# raw_prop_table
+
 # ____________ ------------------------------------------------------------
 
 # SEROPREVALENCIA ---------------------------------------------------------
@@ -277,13 +280,6 @@ uu_clean_data %>% count(CONGLOMERADO,VIVIENDA)
 # diseño muestral de la encuesta ---------------------------------
 
 design <- uu_clean_data %>% 
-  # mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-  #           .funs = labelled::to_labelled) %>%
-  # mutate_at(.vars = vars(covariate_list),
-  #           .funs = ~labelled::to_labelled(as.factor(.x))) %>%
-  # mutate(sintomas_cualquier_momento_cat=as.numeric(sintomas_cualquier_momento_cat)) %>% 
-  # select(sintomas_cualquier_momento_cat,ig_clasificacion=ig_clasificacion_num,
-  #        factorfinal,CONGLOMERADO,VIVIENDA,ESTRATO,PONDERACION) %>% 
   
   filter(!is.na(ig_clasificacion)) %>% #CRITICAL! ON OUTCOME
   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
@@ -300,59 +296,54 @@ design <- uu_clean_data %>%
 #' ejemplos
 #' 1. fraccion de positivos en cada grupo de sinto, oligo, asinto
 #' 2. fraccion de sinto, oligo, asinto en el grupo de positivos o negativos
-# cdc_srvyr_prevalence_numerator_denominator(design = design,
-#                                            denominator = sintomas_cualquier_momento_cat,
-#                                            numerator = ig_clasificacion) %>% 
+
+# cdc_survey_proportion(design = design,
+#                       denominator = sintomas_cualquier_momento_cat,
+#                       numerator = ig_clasificacion) %>% 
 #   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
 # 
-# cdc_srvyr_prevalence_numerator_denominator(design = design,
-#                                            denominator = ig_clasificacion,
-#                                            numerator = sintomas_cualquier_momento_cat) %>% 
-#   glimpse()
+# cdc_survey_proportion(design = design,
+#                       denominator = ig_clasificacion,
+#                       numerator = sintomas_cualquier_momento_cat) %>% 
+#   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
 # 
-# cdc_srvyr_prevalence_numerator_denominator(design = design,
-#                                            denominator = edad_decenios,
-#                                            numerator = ig_clasificacion) %>% 
-#   select(-ends_with("_cv"),-ends_with("_deff"))
-
-cdc_survey_proportion(design = design,
-                      denominator = sintomas_cualquier_momento_cat,
-                      numerator = ig_clasificacion) %>% 
-  select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
-
-cdc_survey_proportion(design = design,
-                      denominator = ig_clasificacion,
-                      numerator = sintomas_cualquier_momento_cat)
-
-cdc_survey_proportion(design = design,
-                      denominator = edad_decenios,
-                      numerator = ig_clasificacion)
-
-cdc_survey_proportion(design = design,
-                      denominator = survey_all,
-                      numerator = ig_clasificacion) %>% 
-  glimpse()
-  # summarise_at(.vars = vars(starts_with("total")),.funs = sum)
+# cdc_survey_proportion(design = design,
+#                       denominator = edad_decenios,
+#                       numerator = ig_clasificacion) %>% 
+#   select(-ends_with("_cv"),-ends_with("_deff"),-ends_with("_se"),-denominator,-numerator)
+# 
+# cdc_survey_proportion(design = design,
+#                       denominator = survey_all,
+#                       numerator = ig_clasificacion) %>% 
+#   glimpse()
+#   # select(#-ends_with("_low"),-ends_with("_upp"),
+#   #   -ends_with("_cv"),-ends_with("_deff"))
+# 
+# cdc_survey_proportion(design = design,
+#                       denominator = sexo,
+#                       numerator = ig_clasificacion) %>% 
+#   select(#-ends_with("_low"),-ends_with("_upp"),
+#          -ends_with("_cv"),-ends_with("_deff"),-ends_with("_se"),-contains("total"))
 
 # 01_general ----------------------------------------------------------------
 
-out0101 <- cdc_srvyr_prevalence_outcome(design = design,
-                                        outcome = ig_clasificacion)
-out0101 %>% glimpse()
+# out0101 <- cdc_srvyr_prevalence_outcome(design = design,
+#                                         outcome = ig_clasificacion)
+# out0101 %>% glimpse()
 
 # 02_espacial: diris ----------------------------------------------------------------
 
-out0106 <- cdc_srvyr_prevalence_one_covariate(design = design,
-                                              covariate = diris,
-                                              outcome = ig_clasificacion)
-out0106
+# out0106 <- cdc_srvyr_prevalence_one_covariate(design = design,
+#                                               covariate = diris,
+#                                               outcome = ig_clasificacion)
+# out0106
 
 # 03_edad: decenio ----------------------------------------------------------------
 
-out0104 <- cdc_srvyr_prevalence_one_covariate(design = design,
-                                              covariate = edad_decenios,
-                                              outcome = ig_clasificacion)
-out0104
+# out0104 <- cdc_srvyr_prevalence_one_covariate(design = design,
+#                                               covariate = edad_decenios,
+#                                               outcome = ig_clasificacion)
+# out0104
 
 # 03_edad: quinquenio ----------------------------------------------------------------#
 
@@ -366,249 +357,258 @@ out0104
 
 outcome_01_pre <- 
   # crear matriz
-  tibble(
+  expand_grid(
     design=list(design),
-    covariate=covariate_list,
-    outcome="ig_clasificacion"
+    denominator=covariate_list,
+    numerator=c("ig_clasificacion","positividad_peru")
   ) %>% 
   # crear simbolos
   mutate(
-    covariate=map(covariate,dplyr::sym),
-    outcome=map(outcome,dplyr::sym)
+    denominator=map(denominator,dplyr::sym),
+    numerator=map(numerator,dplyr::sym)
   ) %>% 
   # estimar prevalencia
-  mutate(output=pmap(.l = select(.,design,covariate,outcome),
-                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
-  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
-  select(-design,-covariate,-outcome) %>% 
+  
+  # mutate(output=pmap(.l = select(.,design,covariate=denominator,outcome=numerator),
+  #                    .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+  
+  mutate(output=pmap(.l = select(.,design,denominator,numerator),
+                     .f = cdc_survey_proportion)) %>% 
+  
+  # mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+  select(-design,-denominator,-numerator) %>% 
   unnest(cols = c(output)) #%>% 
 # cdc_srvyr_tibble_02(colname_number = 3)
 
-# ___________ -------------------------------------------------------------
-
-# IgG ---------------------------------------------------------------------
-
-# diseño muestral de la encuesta ---------------------------------
-
-design_02 <- uu_clean_data %>% 
-  # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
-  
-  # as_factor() %>% #importar variable+value labels
-  
-  filter(!is.na(igg)) %>% #CRITICAL! ON OUTCOME
-  filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
-  
-  as_survey_design(c(CONGLOMERADO, VIVIENDA),
-                   #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
-                   #add vivienda como *SSU*
-                   strata = ESTRATO, #clusters need to be nested in the strata
-                   weights= PONDERACION # factores de expancion
-  )
-
-# tablas de prevalencia ------
+outcome_01_pre
+# pendiente: agregar denominador seropositivos numerador sintomas
 
 
-# 01_general ----------------------------------------------------------------
-
-out0201 <- cdc_srvyr_prevalence_outcome(design = design_02,
-                                        outcome = igg)
-out0201
-
-# 02_espacial: diris ----------------------------------------------------------------
-
-out0206 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
-                                              covariate = diris,
-                                              outcome = igg)
-out0206
-
-# 03_edad: decenio ----------------------------------------------------------------
-
-out0204 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
-                                              covariate = edad_decenios,
-                                              outcome = igg)
-out0204 
-
-# 03_edad: quinquenio ----------------------------------------------------------------#
-
-# out0205 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
-#                                               covariate = edad_quinquenal,
+# # ___________ -------------------------------------------------------------
+# 
+# # IgG ---------------------------------------------------------------------
+# 
+# # diseño muestral de la encuesta ---------------------------------
+# 
+# design_02 <- uu_clean_data %>% 
+#   # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
+#   
+#   # as_factor() %>% #importar variable+value labels
+#   
+#   filter(!is.na(igg)) %>% #CRITICAL! ON OUTCOME
+#   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
+#   
+#   as_survey_design(c(CONGLOMERADO, VIVIENDA),
+#                    #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
+#                    #add vivienda como *SSU*
+#                    strata = ESTRATO, #clusters need to be nested in the strata
+#                    weights= PONDERACION # factores de expancion
+#   )
+# 
+# # tablas de prevalencia ------
+# 
+# 
+# # 01_general ----------------------------------------------------------------
+# 
+# out0201 <- cdc_srvyr_prevalence_outcome(design = design_02,
+#                                         outcome = igg)
+# out0201
+# 
+# # 02_espacial: diris ----------------------------------------------------------------
+# 
+# out0206 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+#                                               covariate = diris,
 #                                               outcome = igg)
-# out0205 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
-
-
-# 04_covariates ---------------------------------------------------------------
-
-outcome_02_pre <- 
-  # crear matriz
-  tibble(
-    design=list(design_02),
-    covariate=covariate_list,
-    outcome="igg"
-  ) %>% 
-  # crear simbolos
-  mutate(
-    covariate=map(covariate,dplyr::sym),
-    outcome=map(outcome,dplyr::sym)
-  ) %>% 
-  # estimar prevalencia
-  mutate(output=pmap(.l = select(.,design,covariate,outcome),
-                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
-  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
-  select(-design,-covariate,-outcome) %>% 
-  unnest(cols = c(output)) #%>% 
-# cdc_srvyr_tibble_02(colname_number = 3)
-
-
-
-# ___________ -------------------------------------------------------------
-
-# IgM ---------------------------------------------------------------------
-
-# diseño muestral de la encuesta ---------------------------------
-
-design_03 <- uu_clean_data %>% 
-  # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
-  
-  # as_factor() %>% #importar variable+value labels
-  
-  filter(!is.na(igm)) %>% #CRITICAL! ON OUTCOME
-  filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
-  
-  as_survey_design(c(CONGLOMERADO, VIVIENDA),
-                   #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
-                   #add vivienda como *SSU*
-                   strata = ESTRATO, #clusters need to be nested in the strata
-                   weights= PONDERACION # factores de expancion
-  )
-
-# tablas de prevalencia ------
-
-
-# 01_general ----------------------------------------------------------------
-
-out0301 <- cdc_srvyr_prevalence_outcome(design = design_03,
-                                        outcome = igm)
-out0301
-
-# 02_espacial: diris ----------------------------------------------------------------
-
-out0306 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
-                                              covariate = diris,
-                                              outcome = igm)
-out0306
-
-
-# 03_edad: decenio ----------------------------------------------------------------
-
-out0304 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
-                                              covariate = edad_decenios,
-                                              outcome = igm)
-out0304 
-
-# 03_edad: quinquenio ----------------------------------------------------------------#
-
-# out0305 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
-#                                               covariate = edad_quinquenal,
+# out0206
+# 
+# # 03_edad: decenio ----------------------------------------------------------------
+# 
+# out0204 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+#                                               covariate = edad_decenios,
+#                                               outcome = igg)
+# out0204 
+# 
+# # 03_edad: quinquenio ----------------------------------------------------------------#
+# 
+# # out0205 <- cdc_srvyr_prevalence_one_covariate(design = design_02,
+# #                                               covariate = edad_quinquenal,
+# #                                               outcome = igg)
+# # out0205 #%>% write_xlsx("table/tab05-sarscov2-edad_quinquenal-20c.xlsx")
+# 
+# 
+# # 04_covariates ---------------------------------------------------------------
+# 
+# outcome_02_pre <- 
+#   # crear matriz
+#   tibble(
+#     design=list(design_02),
+#     covariate=covariate_list,
+#     outcome="igg"
+#   ) %>% 
+#   # crear simbolos
+#   mutate(
+#     covariate=map(covariate,dplyr::sym),
+#     outcome=map(outcome,dplyr::sym)
+#   ) %>% 
+#   # estimar prevalencia
+#   mutate(output=pmap(.l = select(.,design,covariate,outcome),
+#                      .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+#   mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+#   select(-design,-covariate,-outcome) %>% 
+#   unnest(cols = c(output)) #%>% 
+# # cdc_srvyr_tibble_02(colname_number = 3)
+# 
+# 
+# 
+# # ___________ -------------------------------------------------------------
+# 
+# # IgM ---------------------------------------------------------------------
+# 
+# # diseño muestral de la encuesta ---------------------------------
+# 
+# design_03 <- uu_clean_data %>% 
+#   # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
+#   
+#   # as_factor() %>% #importar variable+value labels
+#   
+#   filter(!is.na(igm)) %>% #CRITICAL! ON OUTCOME
+#   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
+#   
+#   as_survey_design(c(CONGLOMERADO, VIVIENDA),
+#                    #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
+#                    #add vivienda como *SSU*
+#                    strata = ESTRATO, #clusters need to be nested in the strata
+#                    weights= PONDERACION # factores de expancion
+#   )
+# 
+# # tablas de prevalencia ------
+# 
+# 
+# # 01_general ----------------------------------------------------------------
+# 
+# out0301 <- cdc_srvyr_prevalence_outcome(design = design_03,
+#                                         outcome = igm)
+# out0301
+# 
+# # 02_espacial: diris ----------------------------------------------------------------
+# 
+# out0306 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+#                                               covariate = diris,
 #                                               outcome = igm)
-# out0305
-
-
-# 04_covariates ---------------------------------------------------------------
-
-outcome_03_pre <- 
-  # crear matriz
-  tibble(
-    design=list(design_03),
-    covariate=covariate_list,
-    outcome="igm"
-  ) %>% 
-  # crear simbolos
-  mutate(
-    covariate=map(covariate,dplyr::sym),
-    outcome=map(outcome,dplyr::sym)
-  ) %>% 
-  # estimar prevalencia
-  mutate(output=pmap(.l = select(.,design,covariate,outcome),
-                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
-  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
-  select(-design,-covariate,-outcome) %>% 
-  unnest(cols = c(output)) #%>% 
-# cdc_srvyr_tibble_02(colname_number = 3)
-
-
-
-# ____________ ------------------------------------------------------------
-
-# CONFIRMADOS PERU --------------------------------------
-
-# diseño muestral de la encuesta ---------------------------------
-
-design_04 <- uu_clean_data %>% 
-  # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
-  
-  # as_factor() %>% #importar variable+value labels
-  
-  filter(!is.na(positividad_peru)) %>% #CRITICAL! ON OUTCOME
-  filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
-  
-  as_survey_design(c(CONGLOMERADO, VIVIENDA),
-                   #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
-                   #add vivienda como *SSU*
-                   strata = ESTRATO, #clusters need to be nested in the strata
-                   weights= PONDERACION # factores de expancion
-  )
-
-# tablas de prevalencia ------
-
-# 01_general ----------------------------------------------------------------
-
-out0401 <- cdc_srvyr_prevalence_outcome(design = design_04,
-                                        outcome = positividad_peru)
-out0401
-
-# 02_espacial: diris ----------------------------------------------------------------
-
-out0406 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
-                                              covariate = diris,
-                                              outcome = positividad_peru)
-out0406
-
-# 03_edad: decenio ----------------------------------------------------------------
-
-out0404 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
-                                              covariate = edad_decenios,
-                                              outcome = positividad_peru)
-out0404 
-
-# 03_edad: quinquenio ----------------------------------------------------------------#
-
-# out0405 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
-#                                               covariate = edad_quinquenal,
+# out0306
+# 
+# 
+# # 03_edad: decenio ----------------------------------------------------------------
+# 
+# out0304 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+#                                               covariate = edad_decenios,
+#                                               outcome = igm)
+# out0304 
+# 
+# # 03_edad: quinquenio ----------------------------------------------------------------#
+# 
+# # out0305 <- cdc_srvyr_prevalence_one_covariate(design = design_03,
+# #                                               covariate = edad_quinquenal,
+# #                                               outcome = igm)
+# # out0305
+# 
+# 
+# # 04_covariates ---------------------------------------------------------------
+# 
+# outcome_03_pre <- 
+#   # crear matriz
+#   tibble(
+#     design=list(design_03),
+#     covariate=covariate_list,
+#     outcome="igm"
+#   ) %>% 
+#   # crear simbolos
+#   mutate(
+#     covariate=map(covariate,dplyr::sym),
+#     outcome=map(outcome,dplyr::sym)
+#   ) %>% 
+#   # estimar prevalencia
+#   mutate(output=pmap(.l = select(.,design,covariate,outcome),
+#                      .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+#   mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+#   select(-design,-covariate,-outcome) %>% 
+#   unnest(cols = c(output)) #%>% 
+# # cdc_srvyr_tibble_02(colname_number = 3)
+# 
+# 
+# 
+# # ____________ ------------------------------------------------------------
+# 
+# # CONFIRMADOS PERU --------------------------------------
+# 
+# # diseño muestral de la encuesta ---------------------------------
+# 
+# design_04 <- uu_clean_data %>% 
+#   # filter(!magrittr::is_in(cd_dist,temporary_just_1_psu$cd_dist)) %>% #3041
+#   
+#   # as_factor() %>% #importar variable+value labels
+#   
+#   filter(!is.na(positividad_peru)) %>% #CRITICAL! ON OUTCOME
+#   filter(!is.na(factorfinal)) %>% #NO DEBEN DE HABER CONGLOMERADOS SIN WEIGHT
+#   
+#   as_survey_design(c(CONGLOMERADO, VIVIENDA),
+#                    #id = CONGLOMERADO, #clusters or psu (primary sampling unit) 
+#                    #add vivienda como *SSU*
+#                    strata = ESTRATO, #clusters need to be nested in the strata
+#                    weights= PONDERACION # factores de expancion
+#   )
+# 
+# # tablas de prevalencia ------
+# 
+# # 01_general ----------------------------------------------------------------
+# 
+# out0401 <- cdc_srvyr_prevalence_outcome(design = design_04,
+#                                         outcome = positividad_peru)
+# out0401
+# 
+# # 02_espacial: diris ----------------------------------------------------------------
+# 
+# out0406 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+#                                               covariate = diris,
 #                                               outcome = positividad_peru)
-# out0405
-
-
-# 04_covariates ---------------------------------------------------------------
-
-outcome_04_pre <- 
-  # crear matriz
-  tibble(
-    design=list(design_04),
-    covariate=covariate_list,
-    outcome="positividad_peru"
-  ) %>% 
-  # crear simbolos
-  mutate(
-    covariate=map(covariate,dplyr::sym),
-    outcome=map(outcome,dplyr::sym)
-  ) %>% 
-  # estimar prevalencia
-  mutate(output=pmap(.l = select(.,design,covariate,outcome),
-                     .f = cdc_srvyr_prevalence_one_covariate)) %>% 
-  mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
-  select(-design,-covariate,-outcome) %>% 
-  unnest(cols = c(output)) #%>% 
-# cdc_srvyr_tibble_02(colname_number = 3)
+# out0406
+# 
+# # 03_edad: decenio ----------------------------------------------------------------
+# 
+# out0404 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+#                                               covariate = edad_decenios,
+#                                               outcome = positividad_peru)
+# out0404 
+# 
+# # 03_edad: quinquenio ----------------------------------------------------------------#
+# 
+# # out0405 <- cdc_srvyr_prevalence_one_covariate(design = design_04,
+# #                                               covariate = edad_quinquenal,
+# #                                               outcome = positividad_peru)
+# # out0405
+# 
+# 
+# # 04_covariates ---------------------------------------------------------------
+# 
+# outcome_04_pre <- 
+#   # crear matriz
+#   tibble(
+#     design=list(design_04),
+#     covariate=covariate_list,
+#     outcome="positividad_peru"
+#   ) %>% 
+#   # crear simbolos
+#   mutate(
+#     covariate=map(covariate,dplyr::sym),
+#     outcome=map(outcome,dplyr::sym)
+#   ) %>% 
+#   # estimar prevalencia
+#   mutate(output=pmap(.l = select(.,design,covariate,outcome),
+#                      .f = cdc_srvyr_prevalence_one_covariate)) %>% 
+#   mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
+#   select(-design,-covariate,-outcome) %>% 
+#   unnest(cols = c(output)) #%>% 
+# # cdc_srvyr_tibble_02(colname_number = 3)
 
 
 
@@ -910,7 +910,7 @@ figura00_pre <- outcome_01 %>%
   union_all(outcome_03) %>% 
   union_all(outcome_04) %>% 
   # round numbers are required
-  mutate_at(.vars = vars(total,sum_total),.funs = round,digits = 0) %>%
+  mutate_at(.vars = vars(total,total_den),.funs = round,digits = 0) %>%
   # select(1:4) %>% 
   #segun validacion local ins
   mutate(se_loc=case_when(
@@ -956,7 +956,7 @@ figura00_adj <- figura00_pre %>%
   # mutate(adj_loc=pmap(.l = select(.,
   mutate(adj_loc=future_pmap(.l = select(.,
                                   positive_number_test=total,
-                                  total_number_test=sum_total,
+                                  total_number_test=total_den,
                                   sensitivity=se_loc,
                                   specificity=sp_loc),
                       .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
@@ -970,7 +970,7 @@ figura00_adj <- figura00_pre %>%
   # mutate(adj_fab=pmap(.l = select(.,
   mutate(adj_fab=future_pmap(.l = select(.,
                                   positive_number_test=total,
-                                  total_number_test=sum_total,
+                                  total_number_test=total_den,
                                   sensitivity=se_fab,
                                   specificity=sp_fab),
                       .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 

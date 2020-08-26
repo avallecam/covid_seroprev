@@ -247,9 +247,13 @@ srvyr_prop_step_01 <- function(design,numerator,denominator) {
   return(num_levels)
 }
 
-# srvyr_prop_step_01(design = dstrata,
-#                      numerator = awards,
-#                      denominator = stype)
+srvyr_prop_step_01(design = dstrata,
+                     numerator = awards,
+                     denominator = stype)
+
+dstrata %>% 
+  srvyr_prop_step_01(numerator = awards,
+                     denominator = stype)
 
 srvyr_prop_step_02 <- function(design,
                                numerator,
@@ -326,7 +330,8 @@ srvyr_prop_step_03 <- function(design,
 #   filter(numerator_level==awards & denominator_level==stype)
 
 cdc_survey_proportion <- function(design,numerator,denominator) {
-  srvyr_prop_step_01({{design}},
+  design %>% 
+    srvyr_prop_step_01(#{{design}},
                        {{numerator}},
                        {{denominator}}) %>% 
     
