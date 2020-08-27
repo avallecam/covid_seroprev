@@ -247,13 +247,13 @@ srvyr_prop_step_01 <- function(design,numerator,denominator) {
   return(num_levels)
 }
 
-srvyr_prop_step_01(design = dstrata,
-                     numerator = awards,
-                     denominator = stype)
-
-dstrata %>% 
-  srvyr_prop_step_01(numerator = awards,
-                     denominator = stype)
+# srvyr_prop_step_01(design = dstrata,
+#                      numerator = awards,
+#                      denominator = stype)
+# 
+# dstrata %>% 
+#   srvyr_prop_step_01(numerator = awards,
+#                      denominator = stype)
 
 srvyr_prop_step_02 <- function(design,
                                numerator,
