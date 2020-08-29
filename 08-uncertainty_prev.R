@@ -173,7 +173,7 @@ source("covid_serological_sampling.R")
 
 # __ custom functions -----------------------------------------------------
 
-seroprevalence_posterior <- function(positive_number_test,
+serosvy_known_sample_posterior <- function(positive_number_test,
                                      total_number_test,
                                      sensitivity,
                                      specificity) {
@@ -196,6 +196,7 @@ seroprevalence_posterior <- function(positive_number_test,
   my_skim <- skim_with(
     numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
                   mean = mean,
+                  p50 = ~ quantile(., probs = .50),
                   p95 = ~ quantile(., probs = .95)), 
     append = FALSE)
   
@@ -211,32 +212,41 @@ seroprevalence_posterior <- function(positive_number_test,
   )
 }
 
-cdc_srvyr_create_table_free <- function(data,
-                                        estim_var,
-                                        cilow_var,
-                                        ciupp_var,
-                                        estim_digits=3,
-                                        cilow_digits=2,
-                                        ciupp_digits=3) {
+unite_dotwhiskers <- function(data,
+                              variable_dot,
+                              variable_low,
+                              variable_upp,
+                              digits_dot=3,
+                              digits_low=2,
+                              digits_upp=3) {
+  
+  c_var <- enquo(variable_dot)
+  c_var_name_01 <- c_var %>% rlang::as_name() %>% str_c("unite1_",.)
+  c_var_name_02 <- c_var %>% rlang::as_name() %>% str_c("unite2_",.)
+  
   data %>% 
-    mutate(estim_tab={{estim_var}},
-           cilow_tab={{cilow_var}},
-           ciupp_tab={{ciupp_var}}) %>% 
+    mutate(estim_tab={{variable_dot}},
+           cilow_tab={{variable_low}},
+           ciupp_tab={{variable_upp}}) %>% 
     mutate_at(.vars = vars(estim_tab,cilow_tab,ciupp_tab),
               .funs = funs(.*100)) %>% 
     # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
-    mutate_at(.vars = vars(estim_tab),.funs = format,digits=estim_digits) %>% 
-    mutate_at(.vars = vars(cilow_tab),.funs = format,digits=cilow_digits) %>% 
-    mutate_at(.vars = vars(ciupp_tab),.funs = format,digits=ciupp_digits) %>% 
+    mutate_at(.vars = vars(estim_tab),.funs = format,digits=digits_dot) %>% 
+    mutate_at(.vars = vars(cilow_tab),.funs = format,digits=digits_low) %>% 
+    mutate_at(.vars = vars(ciupp_tab),.funs = format,digits=digits_upp) %>% 
     # mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
     # mutate(prevalence=str_c(estim_tab,"%\n(",cilow_tab," - ",ciupp_tab,")")) %>%
-    mutate(fused_tab=str_c(estim_tab,"% (",cilow_tab,"-",ciupp_tab,")")) #%>%
+    mutate(
+      !!c_var_name_01 := str_c(estim_tab,"% (",cilow_tab,"-",ciupp_tab,")"),
+      !!c_var_name_02 := str_c(estim_tab,"%\n(",cilow_tab,"-",ciupp_tab,")")
+    ) %>%
+    select(-estim_tab,-cilow_tab,-ciupp_tab)
   # mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
   # select(-starts_with("proportion"),-ig_clasificacion)
 }
 
 # # reproducible example 01
-# tidy_result <- seroprevalence_posterior(positive_number_test = positive_pop[1],
+# tidy_result <- serosvy_known_sample_posterior(positive_number_test = positive_pop[1],
 #                                         total_number_test = positive_pop[1]+negative_pop[1],
 #                                         # sensitivity = 1,specificity = 1
 #                                         sensitivity = 0.93,
@@ -247,12 +257,12 @@ cdc_srvyr_create_table_free <- function(data,
 #   tidy_result %>%
 #   select(summary) %>%
 #   unnest(cols = c(summary)) %>%
-#   cdc_srvyr_create_table_free(estim_var = numeric.mean,
-#                               cilow_var = numeric.p05,
-#                               ciupp_var = numeric.p95,
-#                               estim_digits = 4,
-#                               cilow_digits = 3,
-#                               ciupp_digits = 3) %>%
+#   unite_dotwhiskers(variable_dot = numeric.mean,
+#                               variable_low = numeric.p05,
+#                               variable_upp = numeric.p95,
+#                               digits_dot = 4,
+#                               digits_low = 3,
+#                               digits_upp = 3) %>%
 #   # select(estim_tab:fused_tab) %>% 
 #   print()
 # 
@@ -285,19 +295,19 @@ cdc_srvyr_create_table_free <- function(data,
 #                               total_number_test=n,
 #                               sensitivity=se,
 #                               specificity=sp),
-#                   .f = possibly(seroprevalence_posterior,otherwise = NA_real_)))
+#                   .f = possibly(serosvy_known_sample_posterior,otherwise = NA_real_)))
 # toc()
 # 
 # result %>%
 #   unnest(fix) %>%
 #   unnest(summary) %>%
 #   mutate(raw=p/n) %>%
-#   cdc_srvyr_create_table_free(estim_var = numeric.mean,
-#                               cilow_var = numeric.p05,
-#                               ciupp_var = numeric.p95,
-#                               estim_digits = 2,
-#                               cilow_digits = 3,
-#                               ciupp_digits = 3) %>%
+#   unite_dotwhiskers(variable_dot = numeric.mean,
+#                               variable_low = numeric.p05,
+#                               variable_upp = numeric.p95,
+#                               digits_dot = 2,
+#                               digits_low = 3,
+#                               digits_upp = 3) %>%
 #   select(estim_tab:fused_tab)
 
 
@@ -337,7 +347,7 @@ cdc_srvyr_create_table_free <- function(data,
 #   geom_density() +
 #   facet_grid(~estimates,scales = "free_x")
 
-seroprevalence_posterior_unk <- function(positive_number_test,
+serosvy_unknown_sample_posterior <- function(positive_number_test,
                                      total_number_test,
                                      true_positive,
                                      true_negative,
@@ -391,7 +401,7 @@ seroprevalence_posterior_unk <- function(positive_number_test,
 
 # # reproducible example xx
 # 
-# result_unk_x <- seroprevalence_posterior_unk(positive_number_test = positive_pop[1],
+# result_unk_x <- serosvy_unknown_sample_posterior(positive_number_test = positive_pop[1],
 #                                              total_number_test = positive_pop[1]+negative_pop[1],
 #                                              true_positive = 670,
 #                                              true_negative = 640,
@@ -413,6 +423,35 @@ seroprevalence_posterior_unk <- function(positive_number_test,
 #   geom_histogram(aes(y=..density..),binwidth = 0.005) +
 #   geom_density() +
 #   facet_grid(~estimates,scales = "free_x")
+
+
+# . -------------------------------------------------------------------------
+# . -------------------------------------------------------------------------
+
+
+# _ EXTRA cleaning procedures ---------------------------------------------
+
+serosvy_extract_posterior <- function(data,variable) {
+  c_var <- enquo(variable)
+  c_var_name_01 <- c_var %>% rlang::as_name() %>% str_c(.,"_p50")
+  c_var_name_02 <- c_var %>% rlang::as_name() %>% str_c(.,"_p05")
+  c_var_name_03 <- c_var %>% rlang::as_name() %>% str_c(.,"_p95")
+  data %>% 
+    unnest({{variable}}) %>%
+    unnest(summary) %>% 
+    rename(
+      !!c_var_name_01 := numeric.p50,
+      !!c_var_name_02 := numeric.p05,
+      !!c_var_name_03 := numeric.p95
+      ) %>% 
+    select(-posterior,
+           -ends_with("performance"),
+           -skim_variable,
+           # -numeric.p05,
+           # -numeric.p95,
+           -numeric.mean
+           )
+}
 
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------

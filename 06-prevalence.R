@@ -8,7 +8,7 @@
 #' (x) ¿cómo podemos usar la proporción para proyectar la cantidad de positivos y engativos expandida?
 #' (x) agrupa de 80 años a más + para decenios y eliminar 
 #' (x) actualizar flujo con nuevas funciones (proportion = TRUE)
-#' ( ) denominador y numeradores pendientes [ver metodos de manuscrito]
+#' (x) denominador y numeradores pendientes [ver metodos de manuscrito]
 #' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
 #' (x) recover results from RAW n, p, t group_by(denominator,numerator)
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
@@ -17,6 +17,8 @@
 library(tidyverse)
 library(survey)
 library(srvyr)
+library(purrr)
+library(furrr)
 library(writexl)
 
 theme_set(theme_bw())
@@ -286,11 +288,11 @@ covariate_set02 <- uu_clean_data %>%
 #     raw_uppc=ci.binom(value)[3],
 #     raw_semc=ci.binom(value)[3]
 #   ) %>% 
-#   cdc_srvyr_create_table_free(estim_var = raw_prop,
-#                               cilow_var = raw_lowc,
-#                               ciupp_var = raw_uppc,
-#                               cilow_digits = 3,
-#                               ciupp_digits = 3) %>% 
+#   unite_dotwhiskers(variable_dot = raw_prop,
+#                               variable_low = raw_lowc,
+#                               variable_upp = raw_uppc,
+#                               digits_low = 3,
+#                               digits_upp = 3) %>% 
 #   select(-estim_tab,-cilow_tab,-ciupp_tab) %>% 
 #   rename(raw_proportion_tab=fused_tab)
 # 
@@ -319,7 +321,7 @@ design <- uu_clean_data %>%
                    weights= PONDERACION # factores de expancion
                    )
 
-# tablas de prevalencia ------
+# tablas de prevalencia (e.g.) ------
 
 #' ejemplos
 #' 1. fraccion de positivos en cada grupo de sinto, oligo, asinto
@@ -381,7 +383,10 @@ design <- uu_clean_data %>%
 # out0105
 
 
-# 04_covariates ---------------------------------------------------------------
+# 04_covariates ---------------------------------------------------------------#
+
+
+# _ 1. estimates: raw + weighted ---------------------------------------------------------------
 
 outcome_01_pre <- 
   # crear matriz
@@ -406,9 +411,6 @@ outcome_01_pre <-
   ) %>% 
   # estimar prevalencia
   
-  # mutate(output=pmap(.l = select(.,design,covariate=denominator,outcome=numerator),
-  #                    .f = cdc_srvyr_prevalence_one_covariate)) %>% 
-  
   mutate(output=pmap(.l = select(.,design,denominator,numerator),
                      .f = cdc_survey_proportion)) %>% 
   
@@ -417,24 +419,83 @@ outcome_01_pre <-
   unnest(cols = c(output)) #%>% 
 # cdc_srvyr_tibble_02(colname_number = 3)
 
+# _ 2. test performance ---------------------------------------------------
+
+plan(multisession, workers = availableCores())
+
+outcome_01_adj <- outcome_01_pre %>% 
+  filter(denominator=="ig_clasificacion"|numerator=="ig_clasificacion") %>% 
+  filter(denominator_level=="positivo"|numerator_level=="positivo") %>% 
+  # round numbers are required
+  mutate_at(.vars = vars(total,total_low,total_upp,
+                         total_den,total_den_low,total_den_upp),
+            .funs = list("round"=round),digits = 0) %>%
+  select(1:4,
+         starts_with("prop"),
+         starts_with("raw_prop"),
+         ends_with("_round")) %>% 
+  # test --------------------------------------------------------------------- !!
+  slice(1) %>% 
+  # unknown test
+  mutate(adj_dot_unk=future_pmap(.l = select(.,
+                                         positive_number_test=total_round,
+                                         total_number_test=total_den_round),
+                             .f = possibly(serosvy_unknown_sample_posterior,otherwise = NA_real_),
+                             true_positive = 30,
+                             true_negative = 50,
+                             false_positive = 0,
+                             false_negative = 0)) %>% 
+  # known test
+  mutate(adj_dot_kno=future_pmap(.l = select(.,
+                                         positive_number_test=total_round,
+                                         total_number_test=total_den_round),
+                             .f = possibly(serosvy_known_sample_posterior,otherwise = NA_real_),
+                             sensitivity=0.999,
+                             specificity=0.960))
+
+
+outcome_01_adj %>% 
+  # select(1:4,
+  #        starts_with("prop"),
+  #        starts_with("raw_prop"),
+  #        adj_dot_unk,
+  #        adj_dot_kno) %>%
+  serosvy_extract_posterior(variable = adj_dot_unk) %>% 
+  serosvy_extract_posterior(variable = adj_dot_kno) %>% 
+  glimpse()
+  # select(1:4,posterior) %>% 
+  # unnest(posterior) 
+  # select(1:4,performance) %>% 
+  # unnest(performance) %>% 
+  avallecam::print_inf()
+
+# _ 3. create output format -----------------------------------------------
+
+
 outcome_01_pre %>% 
   select(1:4,
          # raw_prop,raw_prop_low,raw_prop_upp,
          prop,prop_low,prop_upp,
          # total,total_low,total_upp,
          # total_den,total_den_low,total_den_upp
-         ) %>% 
-  cdc_srvyr_create_table_free(estim_var = prop, ##### PENDINDING + RECOMMENDATION !!!!!!
-                              cilow_var = prop_low,
-                              ciupp_var = prop_upp,
-                              estim_digits = 3,
-                              cilow_digits = 3,
-                              ciupp_digits = 3)
-  # avallecam::print_inf()
+  ) %>% 
+  unite_dotwhiskers(variable_dot = prop, ##### PENDINDING + RECOMMENDATION !!!!!!
+                    variable_low = prop_low,
+                    variable_upp = prop_upp,
+                    digits_dot = 2,
+                    digits_low = 2,
+                    digits_upp = 2)
+# avallecam::print_inf()
 # (x) pendiente: agregar denominador seropositivos numerador sintomas
-# ( ) pendiente: retirar columnas de *_tab y solo conservar la fused_tab agregando al inicio el nombre de la anterior variable. USAR como reverencia la función PARETO cdcper::cdc_pareto_lista
-# ( ) pendiente: apply serosurvey::seroprevalence_posterior
-# ( ) package: survey_proportion + creation on table (better for avallecam?) + application of performance correction + workflow!
+# (x) pendiente: retirar columnas de *_tab y solo conservar la fused_tab agregando al inicio el nombre de la anterior variable. USAR como reverencia la función PARETO cdcper::cdc_pareto_lista
+# (x) pendiente: apply serosurvey::seroprevalence_posterior_kno
+# ( ) reproducir ejemplo - ¿por qué diferente direccionalidad a valor crudo?
+# ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + workflow!
+
+# clean the flow
+# ( ) first, do main calculations
+# ( ) second, create figures
+# ( ) third, create outputs for tables
 
 # # ___________ -------------------------------------------------------------
 # 
@@ -774,7 +835,7 @@ figura01 <- outcome_01 %>%
   ))
 
 figura01 %>% 
-  cdc_srvyr_create_table(estim_digits = 2) %>% 
+  cdc_srvyr_create_table(digits_dot = 2) %>% 
   # select(prevalence_tab)
   writexl::write_xlsx("table/33-seroprev-figura01.xlsx")
 
@@ -821,7 +882,7 @@ figura02 <- out0104 %>%
                             "IgM+ o IgG+ o PCR+"="positividad_peru",
                             ))
 figura02 %>% 
-  cdc_srvyr_create_table(estim_digits = 2,ciupp_digits = 2) %>% 
+  cdc_srvyr_create_table(digits_dot = 2,digits_upp = 2) %>% 
   # select(prevalence_tab)
   writexl::write_xlsx("table/33-seroprev-figura02.xlsx")
 
@@ -1011,7 +1072,7 @@ figura00_adj <- figura00_pre %>%
                                   total_number_test=total_den,
                                   sensitivity=se_loc,
                                   specificity=sp_loc),
-                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
+                      .f = possibly(seroprevalence_posterior_kno,otherwise = NA_real_))) %>% 
   mutate(adj_loc_rg=future_pmap_dbl(.l = select(.,
                                                 prev.obs=proportion, 
                                                 Se=se_loc, Sp=sp_loc),
@@ -1025,7 +1086,7 @@ figura00_adj <- figura00_pre %>%
                                   total_number_test=total_den,
                                   sensitivity=se_fab,
                                   specificity=sp_fab),
-                      .f = possibly(seroprevalence_posterior,otherwise = NA_real_))) %>% 
+                      .f = possibly(seroprevalence_posterior_kno,otherwise = NA_real_))) %>% 
   mutate(adj_fab_rg=future_pmap_dbl(.l = select(.,
                                                 prev.obs=proportion, 
                                                 Se=se_fab, Sp=sp_fab),
@@ -1035,23 +1096,23 @@ figura00_adj <- figura00_pre %>%
 
 figura00_adj_loc <- figura00_adj %>% 
   select(1:6, ends_with("_loc")) %>% 
-  cdc_srvyr_create_table_free(estim_var = proportion,
-                              cilow_var = proportion_low,
-                              ciupp_var = proportion_upp,
-                              estim_digits = 3,
-                              cilow_digits = 3,
-                              ciupp_digits = 3) %>% 
+  unite_dotwhiskers(variable_dot = proportion,
+                              variable_low = proportion_low,
+                              variable_upp = proportion_upp,
+                              digits_dot = 3,
+                              digits_low = 3,
+                              digits_upp = 3) %>% 
   select(-estim_tab,-cilow_tab,-ciupp_tab,
          -proportion,-proportion_low,-proportion_upp) %>% 
   rename(proportion_tab=fused_tab) %>% 
   unnest(adj_loc) %>%
   unnest(summary) %>%
-  cdc_srvyr_create_table_free(estim_var = numeric.mean,
-                              cilow_var = numeric.p05,
-                              ciupp_var = numeric.p95,
-                              estim_digits = 4,
-                              cilow_digits = 3,
-                              ciupp_digits = 3) %>%
+  unite_dotwhiskers(variable_dot = numeric.mean,
+                              variable_low = numeric.p05,
+                              variable_upp = numeric.p95,
+                              digits_dot = 4,
+                              digits_low = 3,
+                              digits_upp = 3) %>%
   # glimpse()
   select(-posterior,-skim_variable,
          -estim_tab,-cilow_tab,-ciupp_tab,
@@ -1060,23 +1121,23 @@ figura00_adj_loc <- figura00_adj %>%
 
 figura00_adj_fab <- figura00_adj %>% 
   select(1:6, ends_with("_fab")) %>% 
-  cdc_srvyr_create_table_free(estim_var = proportion,
-                              cilow_var = proportion_low,
-                              ciupp_var = proportion_upp,
-                              estim_digits = 3,
-                              cilow_digits = 3,
-                              ciupp_digits = 3) %>% 
+  unite_dotwhiskers(variable_dot = proportion,
+                              variable_low = proportion_low,
+                              variable_upp = proportion_upp,
+                              digits_dot = 3,
+                              digits_low = 3,
+                              digits_upp = 3) %>% 
   select(-estim_tab,-cilow_tab,-ciupp_tab,
          -proportion,-proportion_low,-proportion_upp) %>% 
   rename(proportion_tab=fused_tab) %>% 
   unnest(adj_fab) %>%
   unnest(summary) %>%
-  cdc_srvyr_create_table_free(estim_var = numeric.mean,
-                              cilow_var = numeric.p05,
-                              ciupp_var = numeric.p95,
-                              estim_digits = 3,
-                              cilow_digits = 3,
-                              ciupp_digits = 4) %>%
+  unite_dotwhiskers(variable_dot = numeric.mean,
+                              variable_low = numeric.p05,
+                              variable_upp = numeric.p95,
+                              digits_dot = 3,
+                              digits_low = 3,
+                              digits_upp = 4) %>%
   # glimpse()
   select(-posterior,-skim_variable,
          -estim_tab,-cilow_tab,-ciupp_tab,
@@ -1095,12 +1156,12 @@ figura00_adj_fab %>%
 adj_prev_table <- figura00_pre %>% 
   filter(category=="overall") %>% 
   select(1:6) %>% 
-  cdc_srvyr_create_table_free(estim_var = proportion,
-                              cilow_var = proportion_low,
-                              ciupp_var = proportion_upp,
-                              estim_digits = 3,
-                              cilow_digits = 3,
-                              ciupp_digits = 3) %>%
+  unite_dotwhiskers(variable_dot = proportion,
+                              variable_low = proportion_low,
+                              variable_upp = proportion_upp,
+                              digits_dot = 3,
+                              digits_low = 3,
+                              digits_upp = 3) %>%
   # glimpse()
   select(-estim_tab,-cilow_tab,-ciupp_tab#,
          # -starts_with("proportion")
