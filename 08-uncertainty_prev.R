@@ -19,6 +19,8 @@ set.seed(33)
 # . -------------------------------------------------------------------------
 # . -------------------------------------------------------------------------
 
+# FREQUENTIST -------------------------------------------------------------
+
 # 01 rogan-glanden estimator 1978 --------------------------------------------
 #' from
 #' https://github.com/sakitakahashi/COVID-sensitivity
@@ -97,9 +99,12 @@ correct_sero_misclass_p <- function(p_A,sens=.891,spec=.792){
 }
 
 # correct_sero_misclass_p(p_A = 0.74)
+# correct_sero_misclass(num_pos = positive_pop,num_neg = negative_pop,sens = 0.999,spec = 0.960)
+# correct_sero_misclass_p(p_A = positive_pop/negative_pop,sens = 0.999,spec = 0.960)
+# . -------------------------------------------------------------------------
+# . -------------------------------------------------------------------------
 
-# . -------------------------------------------------------------------------
-# . -------------------------------------------------------------------------
+# BAYESIAN ----------------------------------------------------------------
 
 # 02 larremorre method 2020 --------------------------------------------------
 
@@ -220,6 +225,7 @@ unite_dotwhiskers <- function(data,
                               digits_low=2,
                               digits_upp=3) {
   
+  # combo to maintain variable name in a new variable
   c_var <- enquo(variable_dot)
   c_var_name_01 <- c_var %>% rlang::as_name() %>% str_c("unite1_",.)
   c_var_name_02 <- c_var %>% rlang::as_name() %>% str_c("unite2_",.)
@@ -228,21 +234,22 @@ unite_dotwhiskers <- function(data,
     mutate(estim_tab={{variable_dot}},
            cilow_tab={{variable_low}},
            ciupp_tab={{variable_upp}}) %>% 
+    # from decimal to percentile
     mutate_at(.vars = vars(estim_tab,cilow_tab,ciupp_tab),
               .funs = funs(.*100)) %>% 
-    # mutate_at(.vars = vars(,),.funs = format,digits=3) %>%
+    # digits must be value specific
     mutate_at(.vars = vars(estim_tab),.funs = format,digits=digits_dot) %>% 
     mutate_at(.vars = vars(cilow_tab),.funs = format,digits=digits_low) %>% 
     mutate_at(.vars = vars(ciupp_tab),.funs = format,digits=digits_upp) %>% 
-    # mutate_at(.vars = vars(proportion_cv_tab),.funs = format,digits=2) %>%
-    # mutate(prevalence=str_c(estim_tab,"%\n(",cilow_tab," - ",ciupp_tab,")")) %>%
+    # missing must keep as missing
+    mutate_at(.vars = vars(estim_tab,cilow_tab,ciupp_tab),
+              .funs = ~if_else(str_detect(.x,"NA"),NA_character_,.x)) %>% 
+    # two proposal
     mutate(
-      !!c_var_name_01 := str_c(estim_tab,"% (",cilow_tab,"-",ciupp_tab,")"),
-      !!c_var_name_02 := str_c(estim_tab,"%\n(",cilow_tab,"-",ciupp_tab,")")
+      !!c_var_name_01 := str_c(estim_tab,"% (",cilow_tab," - ",ciupp_tab,")"),
+      !!c_var_name_02 := str_c(estim_tab,"%\n(",cilow_tab," - ",ciupp_tab,")")
     ) %>%
     select(-estim_tab,-cilow_tab,-ciupp_tab)
-  # mutate(cv=str_c(proportion_cv_tab,"%")) #%>%
-  # select(-starts_with("proportion"),-ig_clasificacion)
 }
 
 # # reproducible example 01
@@ -317,15 +324,23 @@ unite_dotwhiskers <- function(data,
 # _ UNKNOWN performance ---------------------------------------------------------------
 
 # # reproducible example 04
+# positive_pop[1]/negative_pop[1]
+# posi <- c(2485713, 692)
+# total <- c(11609844, 3212)
+# nega <- total - posi
+# posi/total
+# posi/nega
+# nt <- 2
 # result_unk <- sample_posterior_r_mcmc_testun(samps = 10000,
-#                                            #in population
-#                                            pos = positive_pop[1], #positive
-#                                            n = negative_pop[1], #negatives
-#                                            # in lab
-#                                            # tp = 30,tn = 50,fp = 0,fn = 0
-#                                            tp = 670,tn = 640,fp = 202,fn = 74
-# )
-
+#                                              #in population
+#                                              pos = posi[nt], #positive_pop[1], #positive
+#                                              # n = nega[nt], #negative_pop[1], #negatives
+#                                              n = total[nt], #negative_pop[1], #negatives
+#                                              # in lab
+#                                              tp = 30,tn = 50,fp = 0,fn = 0
+#                                              # tp = 670,tn = 640,fp = 202,fn = 74
+#                                              )
+# 
 # # reproducible example YY
 # 
 # result_unk %>%
@@ -334,9 +349,9 @@ unite_dotwhiskers <- function(data,
 # 
 # result_unk %>%
 #   as_tibble() %>%
-#     ggplot(aes(x = r)) +
-#     geom_histogram(aes(y=..density..),binwidth = 0.005) +
-#     geom_density()
+#   ggplot(aes(x = r)) +
+#   geom_histogram(aes(y=..density..),binwidth = 0.005) +
+#   geom_density()
 # 
 # result_unk %>%
 #   as_tibble() %>%
@@ -354,48 +369,68 @@ serosvy_unknown_sample_posterior <- function(positive_number_test,
                                      false_positive,
                                      false_negative) {
   
-  negative_number_test <- total_number_test - positive_number_test
+  # negative_number_test <- total_number_test - positive_number_test
   
   pos <- positive_number_test
-  neg <- negative_number_test
+  # neg <- negative_number_test ------------# submitted issue
+  tot <- total_number_test
   tp <- true_positive
   tn <- true_negative
   fp <- false_positive
   fn <- false_negative
   
-  result <- sample_posterior_r_mcmc_testun(samps = 10000,
-                                           #in population
-                                           pos = pos, #positive
-                                           n = neg, #negatives
-                                           # in lab
-                                           tp = tp,tn = tn,
-                                           fp = fp,fn = fn
-  ) %>% 
-    as_tibble()
+  # result <- 
+  result_sum <- 
+    sample_posterior_r_mcmc_testun(samps = 10000,
+                                   #in population
+                                   pos = pos, #positive
+                                   # n = neg, #negatives
+                                   n = tot, #total
+                                   # in lab
+                                   tp = tp,tn = tn,
+                                   fp = fp,fn = fn
+    ) %>% 
+    
+    # as_tibble()
+    # first matrix element is r (posterior distribution)
+    .[,1] %>%
+    
+    # as_tibble() %>%
+    enframe(value = "r",name = NULL) %>% 
+    summarise(numeric.p05 = quantile(r, probs = .05),
+              numeric.mean = mean(r),
+              numeric.p50 = quantile(r, probs = .50),
+              numeric.p95 = quantile(r, probs = .95))
   
-  my_skim <- skim_with(
-    numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
-                  mean = mean,
-                  p50 = ~ quantile(., probs = .50),
-                  p95 = ~ quantile(., probs = .95)), 
-    append = FALSE)
+  # my_skim <- skim_with(
+  #   numeric = sfl(p05 = ~ quantile(., probs = .05), # 90% credibility interval
+  #                 mean = mean,
+  #                 p50 = ~ quantile(., probs = .50),
+  #                 p95 = ~ quantile(., probs = .95)), 
+  #   append = FALSE)
   
-  result_sum <- result %>% 
-    my_skim() %>% 
-    as_tibble() %>% 
-    filter(skim_variable=="r") %>% 
-    select(skim_variable,numeric.p05:numeric.p95)
+  # result_sum <- result %>%
+  #   # as_tibble() %>%
+  #   enframe(value = "r",name = NULL) %>% 
+  #   summarise(numeric.p05 = quantile(r, probs = .05),
+  #             numeric.mean = mean(r),
+  #             numeric.p50 = quantile(r, probs = .50),
+  #             numeric.p95 = quantile(r, probs = .95))
+    # my_skim() %>% 
+    # as_tibble() %>% 
+    # filter(skim_variable=="r") %>% 
+    # select(skim_variable,numeric.p05:numeric.p95)
   
-  performance_sum <- result %>% 
-    my_skim() %>% 
-    as_tibble() %>% 
-    filter(!(skim_variable=="r")) %>% 
-    select(skim_variable,numeric.p05:numeric.p95)
+  # performance_sum <- result %>% 
+  #   my_skim() %>% 
+  #   as_tibble() %>% 
+  #   filter(!(skim_variable=="r")) %>% 
+  #   select(skim_variable,numeric.p05:numeric.p95)
   
   output <- tibble(
-    posterior=list(result),
+    # posterior=list(result),
     summary=list(result_sum),
-    performance=list(performance_sum)
+    # performance=list(performance_sum)
   )
 }
 
@@ -444,9 +479,9 @@ serosvy_extract_posterior <- function(data,variable) {
       !!c_var_name_02 := numeric.p05,
       !!c_var_name_03 := numeric.p95
       ) %>% 
-    select(-posterior,
+    select(-ends_with("posterior"),
            -ends_with("performance"),
-           -skim_variable,
+           -ends_with("skim_variable"),
            # -numeric.p05,
            # -numeric.p95,
            -numeric.mean

@@ -5,12 +5,8 @@
 #' write_rds("data/uu_clean_data.rds")
 #' 
 #' PENDIENTES:
-#' (x) ¿cómo podemos usar la proporción para proyectar la cantidad de positivos y engativos expandida?
-#' (x) agrupa de 80 años a más + para decenios y eliminar 
-#' (x) actualizar flujo con nuevas funciones (proportion = TRUE)
-#' (x) denominador y numeradores pendientes [ver metodos de manuscrito]
 #' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
-#' (x) recover results from RAW n, p, t group_by(denominator,numerator)
+#' ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + workflow!
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 
@@ -30,6 +26,7 @@ source("10-prevalence_functions.R")
 
 source("08-uncertainty_prev.R")
 
+set.seed(33)
 
 # inputs ------------------------------------------------------------------
 
@@ -186,7 +183,7 @@ covariate_set01 <- uu_clean_data %>%
          diris,
          # pobreza_dico,
          hacinamiento,
-         nro_dormitorios_cat,
+         # nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,
          # riesgo,
@@ -264,40 +261,6 @@ covariate_set02 <- uu_clean_data %>%
 
 # ________ ----------------------------------------------------------------
 
-
-# PROPORCION CRUDA --------------------------------------------------------
-
-#' replaced
-#' within proportion function
-
-# # PENDIENTE: REPREX con cdcper dotwhiskes plot
-# # usando .funs = funs("num"=outcome_to_numeric)
-# # https://stackoverflow.com/questions/35953394/calculating-length-of-95-ci-using-dplyr
-# 
-# library(moderndive)
-# library(infer)
-# library(gmodels)
-# raw_prop_table <- uu_clean_data %>% 
-#   select(rowname,ends_with("_num")) %>% 
-#   pivot_longer(cols = -rowname,names_to = "outcome",values_to = "value") %>% 
-#   group_by(outcome) %>% 
-#   summarise(
-#     raw_obse=n(),
-#     raw_prop=ci.binom(value)[1],
-#     raw_lowc=ci.binom(value)[2],
-#     raw_uppc=ci.binom(value)[3],
-#     raw_semc=ci.binom(value)[3]
-#   ) %>% 
-#   unite_dotwhiskers(variable_dot = raw_prop,
-#                               variable_low = raw_lowc,
-#                               variable_upp = raw_uppc,
-#                               digits_low = 3,
-#                               digits_upp = 3) %>% 
-#   select(-estim_tab,-cilow_tab,-ciupp_tab) %>% 
-#   rename(raw_proportion_tab=fused_tab)
-# 
-# raw_prop_table
-
 # ____________ ------------------------------------------------------------
 
 # SEROPREVALENCIA ---------------------------------------------------------
@@ -355,37 +318,6 @@ design <- uu_clean_data %>%
 #   select(#-ends_with("_low"),-ends_with("_upp"),
 #          -ends_with("_cv"),-ends_with("_deff"),-ends_with("_se"),-contains("total"))
 
-# 01_general ----------------------------------------------------------------#
-
-# out0101 <- cdc_srvyr_prevalence_outcome(design = design,
-#                                         outcome = ig_clasificacion)
-# out0101 %>% glimpse()
-
-# 02_espacial: diris ----------------------------------------------------------------#
-
-# out0106 <- cdc_srvyr_prevalence_one_covariate(design = design,
-#                                               covariate = diris,
-#                                               outcome = ig_clasificacion)
-# out0106
-
-# 03_edad: decenio ----------------------------------------------------------------#
-
-# out0104 <- cdc_srvyr_prevalence_one_covariate(design = design,
-#                                               covariate = edad_decenios,
-#                                               outcome = ig_clasificacion)
-# out0104
-
-# 03_edad: quinquenio ----------------------------------------------------------------#
-
-# out0105 <- cdc_srvyr_prevalence_one_covariate(design = design,
-#                                               covariate = edad_quinquenal,
-#                                               outcome = ig_clasificacion)
-# out0105
-
-
-# 04_covariates ---------------------------------------------------------------#
-
-
 # _ 1. estimates: raw + weighted ---------------------------------------------------------------
 
 outcome_01_pre <- 
@@ -417,85 +349,150 @@ outcome_01_pre <-
   # mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
   select(-design,-denominator,-numerator) %>% 
   unnest(cols = c(output)) #%>% 
-# cdc_srvyr_tibble_02(colname_number = 3)
+
+# outcome_01_pre %>% avallecam::print_inf()
+
 
 # _ 2. test performance ---------------------------------------------------
 
-plan(multisession, workers = availableCores())
+# __ filter + add values --------------------------------------------------
 
-outcome_01_adj <- outcome_01_pre %>% 
-  filter(denominator=="ig_clasificacion"|numerator=="ig_clasificacion") %>% 
-  filter(denominator_level=="positivo"|numerator_level=="positivo") %>% 
+outcome_01_adj_pre <- outcome_01_pre %>% 
+  # only serological results
+  filter(numerator=="ig_clasificacion") %>% 
+  # only positives
+  filter(numerator_level=="positivo") %>% 
+  # remove some covariates
+  # filter(!magrittr::is_in(denominator,c("edad_decenios","nm_prov","hacinamiento","contacto_covid"))) %>% 
   # round numbers are required
-  mutate_at(.vars = vars(total,total_low,total_upp,
-                         total_den,total_den_low,total_den_upp),
+  mutate_at(.vars = vars(total,total_den,
+                         total_low,total_den_low,
+                         total_upp,total_den_upp),
             .funs = list("round"=round),digits = 0) %>%
-  select(1:4,
-         starts_with("prop"),
-         starts_with("raw_prop"),
-         ends_with("_round")) %>% 
-  # test --------------------------------------------------------------------- !!
-  slice(1) %>% 
-  # unknown test
-  mutate(adj_dot_unk=future_pmap(.l = select(.,
-                                         positive_number_test=total_round,
-                                         total_number_test=total_den_round),
-                             .f = possibly(serosvy_unknown_sample_posterior,otherwise = NA_real_),
-                             true_positive = 30,
-                             true_negative = 50,
-                             false_positive = 0,
-                             false_negative = 0)) %>% 
-  # known test
-  mutate(adj_dot_kno=future_pmap(.l = select(.,
-                                         positive_number_test=total_round,
-                                         total_number_test=total_den_round),
-                             .f = possibly(serosvy_known_sample_posterior,otherwise = NA_real_),
-                             sensitivity=0.999,
-                             specificity=0.960))
+  # unknown test local validation results
+  # for sensitivity:
+  # 30 sars-cov-2 positives
+  # for specificity:
+  # 50 sars-cov-2 negatives
+  # 50 prepandemic with other pathogens
+  mutate(
+    true_positive = 30,
+    false_negative = 0,
+    false_positive = 0+2,
+    true_negative = 50+48
+  ) %>% 
+  rownames_to_column() %>%
+  mutate(rowname=as.numeric(rowname))
+  
+# __ apply + extract ----------------------------------------------------------------
+# 56-60sec por covariable 
+# 4GB RAM
+# paralelizando en 8 nucleos usando purrr y furrr
 
+plan(multisession, workers = availableCores())
+tic()
 
-outcome_01_adj %>% 
-  # select(1:4,
-  #        starts_with("prop"),
-  #        starts_with("raw_prop"),
-  #        adj_dot_unk,
-  #        adj_dot_kno) %>%
-  serosvy_extract_posterior(variable = adj_dot_unk) %>% 
-  serosvy_extract_posterior(variable = adj_dot_kno) %>% 
-  glimpse()
-  # select(1:4,posterior) %>% 
-  # unnest(posterior) 
-  # select(1:4,performance) %>% 
-  # unnest(performance) %>% 
-  avallecam::print_inf()
+out <- tibble()
+
+for (i in 1:nrow(outcome_01_adj_pre)) {
+  
+  out <- outcome_01_adj_pre %>% 
+    
+    slice(i) %>% 
+    
+    # dot
+    mutate(adj_dot_unk=future_pmap(.l = select(.,
+                                               positive_number_test=total_round,
+                                               total_number_test=total_den_round),
+                                   .f = possibly(serosvy_unknown_sample_posterior,otherwise = NA_real_),
+                                   true_positive = true_positive,
+                                   false_negative = false_negative,
+                                   false_positive = false_positive,
+                                   true_negative = true_negative)) %>% 
+    serosvy_extract_posterior(variable = adj_dot_unk) %>% 
+    
+    # low
+    mutate(adj_low_unk=future_pmap(.l = select(.,
+                                               positive_number_test=total_low_round,
+                                               total_number_test=total_den_low_round),
+                                   .f = possibly(serosvy_unknown_sample_posterior,otherwise = NA_real_),
+                                   true_positive = true_positive,
+                                   false_negative = false_negative,
+                                   false_positive = false_positive,
+                                   true_negative = true_negative)) %>%
+    serosvy_extract_posterior(variable = adj_low_unk) %>%
+    
+    # upp
+    mutate(adj_upp_unk=future_pmap(.l = select(.,
+                                               positive_number_test=total_upp_round,
+                                               total_number_test=total_den_upp_round),
+                                   .f = possibly(serosvy_unknown_sample_posterior,otherwise = NA_real_),
+                                   true_positive = true_positive,
+                                   false_negative = false_negative,
+                                   false_positive = false_positive,
+                                   true_negative = true_negative)) %>%
+    serosvy_extract_posterior(variable = adj_upp_unk) %>% 
+    
+    # union all outputs
+    union_all(out)
+  
+  out %>% print()
+  # # known test
+  # mutate(adj_dot_kno=future_pmap(.l = select(.,
+  #                                        positive_number_test=total_round,
+  #                                        total_number_test=total_den_round),
+  #                            .f = possibly(serosvy_known_sample_posterior,otherwise = NA_real_),
+  #                            sensitivity=0.999,
+  #                            specificity=0.960))
+  
+}
+
+toc()
+
+outcome_01_adj <- out  %>% 
+  mutate(rowname=as.numeric(rowname)) %>% 
+  arrange(rowname) %>% 
+  select(-rowname) 
 
 # _ 3. create output format -----------------------------------------------
 
 
-outcome_01_pre %>% 
-  select(1:4,
-         # raw_prop,raw_prop_low,raw_prop_upp,
-         prop,prop_low,prop_upp,
-         # total,total_low,total_upp,
-         # total_den,total_den_low,total_den_upp
-  ) %>% 
-  unite_dotwhiskers(variable_dot = prop, ##### PENDINDING + RECOMMENDATION !!!!!!
+
+outcome_01_adj_tbl <- 
+  # start from original dataset
+  outcome_01_pre %>% 
+  # only positives
+  filter(numerator_level=="positivo"|denominator_level=="positivo") %>% 
+  # left join with db with test performance update
+  left_join(outcome_01_adj) %>% 
+  # naniar::miss_var_summary() %>% 
+  # avallecam::print_inf() %>% 
+  
+  # apply format
+  unite_dotwhiskers(variable_dot = raw_prop, 
+                    variable_low = raw_prop_low,
+                    variable_upp = raw_prop_upp,
+                    digits_dot = 3,
+                    digits_low = 2,
+                    digits_upp = 3) %>% 
+  unite_dotwhiskers(variable_dot = prop, 
                     variable_low = prop_low,
                     variable_upp = prop_upp,
                     digits_dot = 2,
                     digits_low = 2,
-                    digits_upp = 2)
-# avallecam::print_inf()
-# (x) pendiente: agregar denominador seropositivos numerador sintomas
-# (x) pendiente: retirar columnas de *_tab y solo conservar la fused_tab agregando al inicio el nombre de la anterior variable. USAR como reverencia la función PARETO cdcper::cdc_pareto_lista
-# (x) pendiente: apply serosurvey::seroprevalence_posterior_kno
-# ( ) reproducir ejemplo - ¿por qué diferente direccionalidad a valor crudo?
-# ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + workflow!
+                    digits_upp = 3) %>% 
+  unite_dotwhiskers(variable_dot = adj_dot_unk_p50,
+                    variable_low = adj_low_unk_p50,
+                    variable_upp = adj_upp_unk_p50,
+                    digits_dot = 2,
+                    digits_low = 2,
+                    digits_upp = 3)
 
-# clean the flow
-# ( ) first, do main calculations
-# ( ) second, create figures
-# ( ) third, create outputs for tables
+outcome_01_adj_tbl %>% 
+  select(1:4,starts_with("unite1_")) %>% 
+  avallecam::print_inf()
+
+
 
 # # ___________ -------------------------------------------------------------
 # 
@@ -729,7 +726,7 @@ outcome_01_pre %>%
 # __________ --------------------------------------------------------------
 
 
-# CORRECCION Sen/Spe ------------------------------------------------------
+# CORRECCION Sen/Spe ------------------------------------------------------#
 
 # pryr::mem_used()
 # 

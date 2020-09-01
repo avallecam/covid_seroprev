@@ -96,7 +96,7 @@ sample_posterior_r_mcmc_hyperR <- function(samps,posi,ni,se,sp,gam0){
 # Inputs:
 ## samps = number of MCMC samples desired
 ## pos = number of positive tests pop
-## n = number of neg tests in pop
+## n = number of neg tests in pop -------------------# issue!!!!
 ## tp = true positive tests in the lab
 ## tn = true negative tests in the lab
 ## fp = false positive tests in the lab
