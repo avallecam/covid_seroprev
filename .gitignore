@@ -7,4 +7,6 @@ indicadores_incompletos.R
 07-retorno_ins.R
 99-test_area.R
 47_perdidos.R
+09-validation_lab.R
+12-issue_reprex.R
 *.Rhistory
