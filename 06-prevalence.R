@@ -259,7 +259,6 @@ covariate_set02 <- uu_clean_data %>%
   ) %>% 
   colnames()
 
-# ________ ----------------------------------------------------------------
 
 # ____________ ------------------------------------------------------------
 
@@ -497,7 +496,6 @@ outcome_01_adj_tbl %>%
 
 
 
-# # ___________ -------------------------------------------------------------
 
 # pryr::mem_used()
 
@@ -516,50 +514,28 @@ outcome_01_adj_tbl %>%
 
 # tables ------------------------------------------------------------------
 
+outcome_01_adj_tbl %>% 
+  writexl::write_xlsx("table/00-seroprev-results.xlsx")
 
-outcome_01 <- out0101 %>% 
-  union_all(outcome_01_pre) %>% 
-  # union_all(out0102 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0103 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0106 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0107 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0108 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0109 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0110 %>% tidy_srvyr_tibble()) %>% 
-  cdc_srvyr_tibble_02()
+outcome_01_adj_tbl %>% 
+  select(1:4,starts_with("unite1_")) %>% 
+  filter(numerator=="ig_clasificacion") %>% 
+  writexl::write_xlsx("table/01-seroprev-table01.xlsx")
 
-outcome_02 <- out0201 %>% 
-  union_all(outcome_02_pre) %>% 
-  # union_all(out0202 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0203 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0206 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0207 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0208 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0209 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0210 %>% tidy_srvyr_tibble()) %>% 
-  cdc_srvyr_tibble_02()
+outcome_01_adj_tbl %>% 
+  select(1:4,starts_with("unite1_")) %>% 
+  filter(denominator=="ig_clasificacion") %>% 
+  writexl::write_xlsx("table/01-seroprev-table02.xlsx")
 
-outcome_03 <- out0301 %>% 
-  union_all(outcome_03_pre) %>% 
-  # union_all(out0302 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0303 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0306 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0307 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0308 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0309 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0310 %>% tidy_srvyr_tibble()) %>% 
-  cdc_srvyr_tibble_02()
+outcome_01_adj_tbl %>% 
+  select(1:4,starts_with("unite1_")) %>% 
+  filter(numerator=="positividad_peru") %>% 
+  writexl::write_xlsx("table/02-seroprev-supp-table01.xlsx")
 
-outcome_04 <- out0401 %>% 
-  union_all(outcome_04_pre) %>% 
-  # union_all(out0402 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0403 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0406 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0407 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0408 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0409 %>% tidy_srvyr_tibble()) %>% 
-  # union_all(out0410 %>% tidy_srvyr_tibble()) %>% 
-  cdc_srvyr_tibble_02()
+outcome_01_adj_tbl %>% 
+  select(1:4,starts_with("unite1_")) %>% 
+  filter(!(denominator=="positividad_peru")) %>% 
+  writexl::write_xlsx("table/02-seroprev-supp-table02.xlsx")
 
 
 # figure ------------------------------------------------------------------
