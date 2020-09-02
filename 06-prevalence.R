@@ -540,103 +540,138 @@ outcome_01_adj_tbl %>%
 
 # figure ------------------------------------------------------------------
 
-# __fig01: all -----------------------------------------------------------------
+# __supp-fig01: PR + PM -----------------------------------------------------------------
 
-figura01 <- outcome_01 %>% 
-  union_all(outcome_02) %>% 
-  union_all(outcome_03) %>% 
-  union_all(outcome_04) %>% 
-  filter(covariate!="diris") %>% 
-  mutate(covariate=if_else(category=="overall","overall",covariate)) %>% 
-  mutate(covariate=fct_relevel(covariate,"overall","sexo")) %>% 
-  mutate(covariate=fct_recode(covariate,
-                              "Pob. General"="overall",
-                              "Sexo Biológico"="sexo",
-                              "Etapas de Vida"="edad_etapas_de_vida_t",
-                              "Hacinamiento"="hacinamiento",
-                              "Pobreza"="pobreza_dico")) %>% 
-  mutate(category=fct_relevel(category,"ninho","adolescente","joven","adulto",
-                              "Pobre","No pobre")) %>% 
-  mutate(category=fct_recode(category,"Prueba"="overall",
-                             "Niño"="ninho","Adolescente"="adolescente",
-                             "Joven"="joven","Adulto"="adulto",
-                             "Adulto Mayor"="adulto_mayor",
-                             "Femenino"="femenino",
-                             "Masculino"="masculino")) %>% 
-  mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
-  mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ o IgG+"="ig_clasificacion",
-                            "IgM+ o IgG+ o PCR+"="positividad_peru",
+# outcome_01_adj_tbl %>% count(denominator)
+
+figura01 <- outcome_01_adj_tbl %>% 
+  filter(!magrittr::is_in(denominator,c("diris","edad_decenios","nm_prov"))) %>%
+  filter(numerator=="ig_clasificacion"|numerator=="positividad_peru") %>% 
+  mutate(denominator=as.factor(denominator),
+         denominator_level=as.factor(denominator_level)) %>% 
+  mutate(denominator=fct_relevel(denominator,"survey_all","sexo")) %>%
+  # grid title
+  mutate(denominator=fct_recode(denominator,
+                              # "Pob. General"="survey_all",
+                              "General Pop."="survey_all",
+                              # "Sexo Biológico"="sexo",
+                              "Biological Sex"="sexo",
+                              # "Etapas de Vida"="edad_etapas_de_vida_t",
+                              "Age (years)"="edad_etapas_de_vida_t",
+                              # "Hacinamiento"="hacinamiento",
+                              "Overcrowding"="hacinamiento",
+                              # "Pobreza"="pobreza_dico"
+                              # "Síntomas"="sintomas_cualquier_momento_cat",
+                              "Symptoms"="sintomas_cualquier_momento_cat",
+                              # "Contacto"="contacto_covid"
+                              "Contact"="contacto_covid"
+                              )
+         ) %>%
+  mutate(denominator_level=fct_relevel(denominator_level,
+                                       "ninho","adolescente","joven","adulto",
+                                       "sinto_asint","sinto_oligo","sinto_covid")
+         ) %>%
+  mutate(denominator_level=fct_rev(denominator_level)) %>%
+  mutate(denominator_level=fct_recode(denominator_level,
+                                      # "Prueba"="survey_all",
+                                      # "Niño"="ninho",
+                                      # "Adolescente"="adolescente",
+                                      # "Joven"="joven",
+                                      # "Adulto"="adulto",
+                                      # "Adulto Mayor"="adulto_mayor",
+                                      # "Femenino"="femenino",
+                                      # "Masculino"="masculino",
+                                      # "No"="no",
+                                      # "Sí"="si",
+                                      # "Desconoce"="desconocido",
+                                      # "Asintomático"="sinto_asint",
+                                      # "Oligosintomático"="sinto_oligo",
+                                      # "Sintomático"="sinto_covid"
+                                      "All"="survey_all",
+                                      "0-11"="ninho",
+                                      "12-17"="adolescente",
+                                      "18-29"="joven",
+                                      "30-59"="adulto",
+                                      "60+"="adulto_mayor",
+                                      "Femenine"="femenino",
+                                      "Masculine"="masculino",
+                                      "No"="no",
+                                      "Yes"="si",
+                                      "Unknown"="desconocido",
+                                      "Asymptomatic"="sinto_asint",
+                                      "Oligosymptomatic"="sinto_oligo",
+                                      "Symptomatic"="sinto_covid",
+                                      "With"="Con Hacinamiento",
+                                      "Without"="Sin Hacinmaniento" #------------#
+                                      )) %>%
+  mutate(numerator=fct_recode(numerator,
+                              # "IgM+"="igm",
+                              # "IgG+"="igg",
+                              "IgM+ or IgG+"="ig_clasificacion",
+                              "IgM+ or IgG+ or PCR+"="positividad_peru"#,
   ))
 
 figura01 %>% 
-  cdc_srvyr_create_table(digits_dot = 2) %>% 
-  # select(prevalence_tab)
-  writexl::write_xlsx("table/33-seroprev-figura01.xlsx")
-
-figura01 %>% 
-  
-  filter(outcome!="IgM+") %>%
-  filter(outcome!="IgG+") %>%
-  mutate(outcome=case_when(
-    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
-    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+")) %>% 
-  
-  ggplot_prevalence() +
+  ggplot_prevalence(category = denominator_level,
+                    proportion = prop,
+                    outcome = numerator,
+                    proportion_upp = prop_upp,
+                    proportion_low = prop_low) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
   coord_flip() +
-  facet_grid(covariate~.,scales = "free_y") +
+  facet_grid(denominator~.,scales = "free_y") +
   colorspace::scale_color_discrete_qualitative() +
-  labs(title = "Prevalencia de SARS-CoV-2",
-       subtitle = "En Lima Metropolitana y Callao, Julio 2020",
-       y = "Prevalencia",x = "",
-       color = "Prueba"#,size = "CV%"
+  labs(title = "SARS-CoV-2 Seroprevalence",
+       subtitle = "Lima Metropolitan Area and Callao - Peru, July 2020",
+       y = "Prevalence",x = "",
+       color = "Case\ndefinition"#,size = "CV%"
   )
-ggsave("figure/33-seroprev-figure01.png",height = 14,width = 7,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01.png",height = 7,width = 7,dpi = "retina")
 
-figura01 %>% write_rds("data/33-seroprev-figure01.rds")
-
-# __fig02: edad decenio -----------------------------------------------------------------
+# __fig01: edad decenio -----------------------------------------------------------------
 
 
-figura02 <- out0104 %>% 
-  tidy_srvyr_tibble() %>% 
-  cdc_srvyr_tibble_03() %>% 
-  union_all(out0204 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  union_all(out0304 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  union_all(out0404 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
-  mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ o IgG+"="ig_clasificacion",
-                            "IgM+ o IgG+ o PCR+"="positividad_peru",
+figura02 <- outcome_01_adj_tbl %>% 
+  filter(magrittr::is_in(denominator,c("edad_decenios"))) %>% 
+  filter(numerator=="ig_clasificacion") %>% 
+  select(1:4,
+         "raw_dot"=raw_prop,"raw_low"=raw_prop_low,"raw_upp"=raw_prop_upp,
+         "prop_dot"=prop,prop_low,prop_upp,
+         "adj_dot"=adj_dot_unk_p50,
+         "adj_low"=adj_low_unk_p50,
+         "adj_upp"=adj_upp_unk_p50) %>% 
+  pivot_longer(
+    cols = -denominator:-numerator_level,
+    names_to = "estimate",
+    values_to = "value"
+  ) %>% 
+  separate(estimate,into = c("source","type")) %>% 
+  pivot_wider(
+    names_from = type,
+    values_from = value
+  ) %>% 
+  mutate(source=fct_relevel(source,"raw","prop","adj")) %>% 
+  # avallecam::print_inf() 
+  mutate(source=fct_recode(source,
+                            # "IgM+"="igm","IgG+"="igg",
+                            "Raw"="raw",
+                            "Sampling design only"="prop",
+                            "Sampling design and\nTest validity"="adj",
                             ))
-figura02 %>% 
-  cdc_srvyr_create_table(digits_dot = 2,digits_upp = 2) %>% 
-  # select(prevalence_tab)
-  writexl::write_xlsx("table/33-seroprev-figura02.xlsx")
 
 figura02 %>% 
-  
-  filter(outcome!="IgM+") %>%
-  filter(outcome!="IgG+") %>%
-  mutate(outcome=case_when(
-    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
-    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+")) %>% 
-  
-  ggplot_prevalence() +
-  colorspace::scale_color_discrete_qualitative() +
-  labs(title = "Prevalencia de SARS-CoV-2 por Prueba y Edad",
-       subtitle = "En Lima Metropolitana y Callao, Julio 2020",
-       y = "Prevalencia",x = "Edad por Decenios",
-       color = "Prueba"#,size = "CV%"
+  ggplot_prevalence(category = denominator_level,
+                    outcome = source,
+                    proportion = dot,
+                    proportion_upp = upp,
+                    proportion_low = low) +
+  colorspace::scale_color_discrete_qualitative(rev = TRUE) +
+  labs(title = "SARS-CoV-2 Seroprevalence Stratified by Age",
+       subtitle = "Lima Metropolitan Area and Callao, Peru - July 2020",
+       y = "Prevalence",x = "Age (years)",
+       color = "Estimate"#,size = "CV%"
        )
-ggsave("figure/33-seroprev-figure02.png",height = 4,width = 6.5,dpi = "retina")
+ggsave("figure/01-seroprev-figure01.png",height = 4,width = 6.5,dpi = "retina")
 
 # out0105 %>% 
 #   tidy_srvyr_tibble() %>% 
@@ -644,7 +679,7 @@ ggsave("figure/33-seroprev-figure02.png",height = 4,width = 6.5,dpi = "retina")
 
 
 
-# __fig03: espacial diris -----------------------------------------------------------------
+# __fig02: espacial diris -----------------------------------------------------------------
 
 library(sf)
 library(ggspatial)
@@ -652,53 +687,32 @@ shapes_diris <- read_rds("data/per4-shp_distritos_janitor_diris.rds") %>%
   st_as_sf(crs = 4610, agr = "constant") %>% 
   count(diris) 
 
-figura03 <- out0106 %>% 
-  tidy_srvyr_tibble() %>% 
-  cdc_srvyr_tibble_03() %>% 
-  union_all(out0206 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  union_all(out0306 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  union_all(out0406 %>% 
-              tidy_srvyr_tibble() %>% 
-              cdc_srvyr_tibble_03()) %>% 
-  left_join(shapes_diris %>% select(-n,category=diris)) %>% 
-  mutate(outcome=fct_relevel(outcome,"igm","igg","ig_clasificacion")) %>% 
-  mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
-                            "IgM+ o IgG+"="ig_clasificacion",
-                            "IgM+ o IgG+ o PCR+"="positividad_peru",
-  )) %>% 
-  cdc_srvyr_create_table() %>% 
+figure_03_map <- outcome_01_adj_tbl %>% 
+  filter(magrittr::is_in(denominator,c("diris"))) %>% 
+  filter(numerator=="ig_clasificacion") %>% 
+  mutate(category=denominator_level) %>% 
   mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
-  mutate(prevalence_map=str_c(category,"\n",prevalence))
+  mutate(prevalence_map=str_c(category,"\n",unite1_adj_dot_unk_p50)) %>% 
+  left_join(shapes_diris %>% select(-n,denominator_level=diris)) %>% 
+  mutate(proportion=adj_dot_unk_p50)
+  # mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
+  #                           "IgM+ o IgG+"="ig_clasificacion",
+  #                           "IgM+ o IgG+ o PCR+"="positividad_peru",
+  # )) %>% 
 
-# figura03 %>% select(-geometry) %>% select(prevalence,prevalence_tab)
-figura03 %>% select(-geometry) %>% writexl::write_xlsx("table/33-seroprev-figura03.xlsx")
-
-figure_03_map <- figura03 %>%
-  # select(proportion)
-  
-  filter(outcome!="IgM+") %>%
-  filter(outcome!="IgG+") %>% 
-  mutate(outcome=case_when(
-    outcome=="IgM+ o IgG+"~"Prueba Rápida (IgM+ o IgG+)",
-    outcome=="IgM+ o IgG+ o PCR+"~"Prueba Rápida (IgM+ o IgG+) o PCR+"))
-
-figure_03_map %>% count(outcome)
+figure_03_map %>% 
+  select(denominator_level,
+         category,
+         geometry,
+         adj_dot_unk_p50,proportion)
 
 figure_03_map %>%
-  
   st_as_sf(crs = 4610, agr = "constant") %>% 
   ggplot() +
   geom_sf(aes(fill=proportion),colour = NA) +
   coord_sf() +
-  # coord_sf(datum = NA) +
-  facet_grid(~outcome) +
-  # scale_fill_viridis_c()
   colorspace::scale_fill_continuous_sequential("Reds 3",
-                                               limits = c(0.18,0.30),
+                                               limits = c(0.14,0.30),
                                                # rev = F,
                                                labels=scales::percent_format(accuracy = 1)) +
   # colorspace::scale_color_continuous_sequential(palette = "Grays",
@@ -708,20 +722,16 @@ figure_03_map %>%
   #                                    fill=proportion,
   #                                    color=proportion),
   #                                size=3,
-  #                                fontface = "bold") +
+  #                                fontface = "bold") #+
   ggsflabel::geom_sf_label(data = figure_03_map %>% 
-                                   filter(category=="CALLAO"|
-                                            category=="LIMA NORTE" & 
-                                            outcome=="Prueba Rápida (IgM+ o IgG+) o PCR+"),
+                                   filter(category=="CALLAO"),
                                  aes(label=prevalence_map,
                                      fill=proportion),
                                  color="white",
                                  size=3,
                                  fontface = "bold") +
   ggsflabel::geom_sf_label(data = figure_03_map %>% 
-                                   filter(!(category=="CALLAO"|
-                                            category=="LIMA NORTE" & 
-                                            outcome=="Prueba Rápida (IgM+ o IgG+) o PCR+")),
+                                   filter(!(category=="CALLAO")),
                                  aes(label=prevalence_map,
                                      # color=proportion,
                                      fill=proportion),
@@ -729,10 +739,11 @@ figure_03_map %>%
                                  size=3,
                                  fontface = "bold") +
   # scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
-  labs(title = "Prevalencia de SARS-CoV-2 por Prueba y DIRIS",
-       subtitle = "En Lima Metropolitana y Callao, Julio 2020",
-       y = "Latitud",x = "Longitud",
-       fill = "Prevalencia"#,size = "CV%"
+  labs(title = "SARS-CoV-2 Seroprevalence Stratified in Space",
+       subtitle = "Lima Metropolitan Area and Callao, Peru - July 2020",
+       y = "Latitude",
+       x = "Longitud",
+       fill = "Prevalence"#,size = "CV%"
   ) +
   annotation_scale(location = "bl", width_hint = 0.5) +
   annotation_north_arrow(location = "bl", 
@@ -740,7 +751,7 @@ figure_03_map %>%
                          pad_x = unit(0.5, "in"),
                          pad_y = unit(0.5, "in"),
                          style = north_arrow_fancy_orienteering)
-ggsave("figure/33-seroprev-figure03.png",height = 9,width = 10,dpi = "retina")
+ggsave("figure/02-seroprev-figure02.png",height = 8,width = 9,dpi = "retina")
 
 
 # __________ --------------------------------------------------------------
