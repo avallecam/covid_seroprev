@@ -6,7 +6,10 @@
 #' 
 #' PENDIENTES:
 #' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
-#' ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + workflow!
+#' ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + ggprevalence (in 10-...R + workflow!
+#' ( ) package: doi it with JOSS + add batch to github
+#' ( ) metadata: doi it in zenodo
+#' ( ) instrument: doi in zenodo or osf
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 
