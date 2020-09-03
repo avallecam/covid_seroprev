@@ -515,6 +515,15 @@ outcome_01_adj_tbl %>%
 #' more
 #' performance of surveillance due to underreporting
 
+# write -------------------------------------------------------------------
+
+
+outcome_01_adj_tbl %>% readr::write_rds("data/outcome_01_adj_tbl.rds")
+
+# read --------------------------------------------------------------------
+
+outcome_01_adj_tbl <- readr::read_rds("data/outcome_01_adj_tbl.rds")
+
 # tables ------------------------------------------------------------------
 
 outcome_01_adj_tbl %>% 
