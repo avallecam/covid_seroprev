@@ -159,18 +159,68 @@ uu_clean_data %>%
 
 # __ descripción poblacional -------------------------------------------------
 
-
 uu_clean_data %>%
-  compareGroups::compareGroups(ig_clasificacion~.,data = .,max.xlev = 20,
-                               chisq.test.perm = TRUE,byrow = T) %>%
-  compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
+  select(survey_all,
+         sexo,
+         edad_etapas_de_vida_c,
+         # edad_etapas_de_vida_t,
+         edad_decenios,
+         # edad_quinquenal,
+         diris,
+         nm_prov,
+         # starts_with("nm_"),
+         # pobreza_dico,
+         tipo_vivienda,
+         agua,
+         desague,
+         electricidad,
+         nro_convivientes_cut,
+         nro_dormitorios_cut,
+         ind_hacin_cut,
+         hacinamiento,
+         # sintomas_cualquier_momento_cat,
+         # riesgo,
+         ends_with("_ext"),
+         # -contains("ninguna"),
+         # -contains("otro"),
+         # -contains("salud"),
+         # -contains("renal"),
+         -contains("60a"),
+         # contacto_covid,
+         etnia_cat,
+         # trabajo_reciente,
+         # atencion,
+         seguro_salud,
+         convResultado,
+         ig_clasificacion
+  ) %>%
+  mutate(across(c(etnia_cat,
+                  seguro_salud,
+                  desague,
+                  agua,
+                  tipo_vivienda),
+                fct_infreq)) %>% 
+  # compareGroups::compareGroups(ig_clasificacion~.,
+  compareGroups::compareGroups(survey_all~.,
+                               # include.miss = T,
+                               data = .,
+                               max.xlev = 20,
+                               chisq.test.perm = TRUE,
+                               # byrow = T
+                               ) %>%
+  compareGroups::createTable(digits = 1,
+                             # show.all = T,
+                             sd.type = 2,
+                             show.p.overall = F,
+                             # show.ratio = T,
+                             show.n = T) %>%
   compareGroups::export2xls("table/01-compareGroups-output-01.xls")
 
-uu_clean_data %>%
-  compareGroups::compareGroups(positividad_peru~.,data = .,max.xlev = 20,
-                               chisq.test.perm = TRUE,byrow = T) %>%
-  compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
-  compareGroups::export2xls("table/01-compareGroups-output-02.xls")
+# uu_clean_data %>%
+#   compareGroups::compareGroups(positividad_peru~.,data = .,max.xlev = 20,
+#                                chisq.test.perm = TRUE,byrow = T) %>%
+#   compareGroups::createTable(digits = 1,sd.type = 2,show.ratio = T,show.n = T) %>%
+#   compareGroups::export2xls("table/01-compareGroups-output-02.xls")
 
 
 # ___________ -------------------------------------------------------------

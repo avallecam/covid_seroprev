@@ -135,7 +135,7 @@ hh_raw_data %>%
 
 #need to add
 recovered_observations <- 
-  readxl::read_excel("table/05-ausentes-en_consolidado-con_conglomerado_recuperado-n45.xlsx") %>% 
+  readxl::read_excel("table/previo/05-ausentes-en_consolidado-con_conglomerado_recuperado-n45.xlsx") %>% 
   select(diris_2,codigo_del_tubo,conglomerado,
          numero_vivienda,numero_hogar,accion_pendiente,vivienda_estatus,
          consentimiento,numero_dni,
@@ -451,7 +451,7 @@ anti_join(hh_raw_data, #813
           by=c("_index"="_parent_index")) %>% 
   left_join(diccionario_conglomerado) %>% 
   # glimpse()
-  writexl::write_xlsx("table/05-20200724-viviendas_sin_participante.xlsx")
+  writexl::write_xlsx("table/previo/05-20200724-viviendas_sin_participante.xlsx")
 
 
 # hh_raw_data %>% select(id) %>% naniar::miss_var_summary()
@@ -716,13 +716,13 @@ uu_raw_data %>%
   select(dni,nombre_completo,diris,conglomerado,numero_vivienda,
          ig_clasificacion,tipo_muestra_pcr,EstatusResultado,
          convResultado) %>% 
-  writexl::write_xlsx("table/04-20200723-pendiente-in_kobo-presente_prueba-pendiente_retorno.xlsx")
+  writexl::write_xlsx("table/previo/04-20200723-pendiente-in_kobo-presente_prueba-pendiente_retorno.xlsx")
 
 # rechazo
 uu_raw_data %>% 
   filter(tipo_muestra_pcr=="nasal") %>% 
   filter(EstatusResultado=="Rechazo Rom") %>% #2
-  writexl::write_xlsx("table/04-20200723-rechazos-in_kobo-presente_prueba-rechazo_rom.xlsx")
+  writexl::write_xlsx("table/previo/04-20200723-rechazos-in_kobo-presente_prueba-rechazo_rom.xlsx")
 
 # inconsistente: con resultado pero si reporte de envio de muestra
 uu_raw_data %>% 
@@ -730,7 +730,7 @@ uu_raw_data %>%
   filter(ig_clasificacion!="negativo") %>% 
   filter(EstatusResultado=="Resultado Verificado") %>% #36+9
   # count(ig_clasificacion,tipo_muestra_pcr,EstatusResultado)
-  writexl::write_xlsx("table/04-20200723-inconsistente-in_kobo-sin_prueba-con_resultado.xlsx")
+  writexl::write_xlsx("table/previo/04-20200723-inconsistente-in_kobo-sin_prueba-con_resultado.xlsx")
 
 #ausentes
 retorno_ins %>%
@@ -742,7 +742,7 @@ retorno_ins %>%
   anti_join(uu_raw_data) %>% 
   # slice(2) %>% select(1:3)
   # avallecam::print_inf()
-  writexl::write_xlsx("table/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
+  writexl::write_xlsx("table/previo/04-20200723-ausentes-retorno_ins-anti_join-base_nominal.xlsx")
 
 consolidados <- read_rds("data/cdc-consolidados_a_ins.rds") %>% 
   filter(!is.na(n_final)) %>% 
@@ -988,7 +988,7 @@ uu_raw_data %>%
 uu_raw_data %>% 
   filter(presente_prueba=="si") %>% 
   filter(ig_clasificacion=="missing") %>% 
-  writexl::write_xlsx("table/04-20200723-pr_pendiente-in_kobo-presente_prueba-sin_resultado_pr.xlsx")
+  writexl::write_xlsx("table/previo/04-20200723-pr_pendiente-in_kobo-presente_prueba-sin_resultado_pr.xlsx")
 
 # __________ --------------------------------------------------------------
 
@@ -1056,12 +1056,19 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   mutate(nro_dormitorios = as.numeric(nro_dormitorios),
          nro_convivientes = as.numeric(nro_convivientes)) %>% 
   mutate(ind_hacin = (nro_convivientes/nro_dormitorios)) %>% 
+  mutate(ind_hacin_qrt=cut(ind_hacin,breaks = 4,include.lowest = T)) %>% 
   # mutate(ind_hacin=if_else(condition = ind_hacin==Inf,
   #                          true = NA_real_,
   #                          false = ind_hacin)) %>%
   mutate(hacinamiento=case_when(ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
                                 ind_hacin>=2.5 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
   mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
+  
+  #' [CATEGORIZAR]
+  
+  cdcper::cdc_cut_integer(variable = nro_convivientes) %>% 
+  cdcper::cdc_cut_integer(variable = nro_dormitorios,number_cuts = 3) %>% 
+  cdcper::cdc_cut_integer(variable = ind_hacin) %>% 
   
   #' [POBREZA MEF]
   
@@ -1453,6 +1460,14 @@ uu_raw_data %>% dim()
 uu_clean_data_pre %>% dim()
 uu_clean_data %>% dim()
 
+
+# numero de conglomerados
+# uu_raw_data_prelab %>% count(conglomerado)
+# numero de viviendas
+# uu_raw_data_prelab %>% 
+#   count(cd_dist,conglomerado,numero_vivienda) %>% 
+#   naniar::miss_var_summary()
+
 # outcomes! ---------------------------------------------------------------
 
 uu_clean_data %>% count(edad_quinquenal_raw) %>% avallecam::print_inf()
@@ -1463,6 +1478,8 @@ uu_clean_data %>%
 uu_clean_data %>% 
   count(presente_prueba,resultado_pr,resultado_pr2,ig_clasificacion,convResultado,positividad_peru)
 
+uu_clean_data %>% 
+  count(convResultado)
 
 # _SINTOMAS!!! -------------------------------------------------------------
 
@@ -1496,13 +1513,13 @@ uu_clean_data %>%
 #   select(observacion_sintomas) %>% 
 #   filter(!is.na(observacion_sintomas)) %>% 
 #   # avallecam::print_inf()
-#   writexl::write_xlsx("table/09-uu_clean_data-observacion_sintomas-revisar.xlsx")
+#   writexl::write_xlsx("table/previo/09-uu_clean_data-observacion_sintomas-revisar.xlsx")
 # 
 # uu_clean_data %>% 
 #   select(observacion) %>% 
 #   filter(!is.na(observacion)) %>% 
 #   # avallecam::print_inf()
-#   writexl::write_xlsx("table/09-uu_clean_data-observacion-revisar.xlsx")
+#   writexl::write_xlsx("table/previo/09-uu_clean_data-observacion-revisar.xlsx")
 
 #' 
 #' [nota]
@@ -1782,7 +1799,7 @@ uu_clean_data %>%
 #   filter(trabajo_reciente=="si") %>%
 #   count(rubro,ocupacion,sort = T) %>%
 #   # avallecam::print_inf()
-#   writexl::write_xlsx("table/10-20200810-ocupacion-pendiente_recategorizar.xlsx")
+#   writexl::write_xlsx("table/previo/10-20200810-ocupacion-pendiente_recategorizar.xlsx")
 
 uu_clean_data %>% 
   select(contains("trab"),ocupacion, contains("labo"), contains("rubr"),prof_salud) %>% 
@@ -1855,7 +1872,7 @@ uu_clean_data %>%
   select(dni,nombre_completo,
          edad_miss,convResultado,ig_clasificacion,positividad_peru) %>% 
   filter(edad_miss=="not" & positividad_peru!="missing" & ig_clasificacion=="missing") %>% 
-  writexl::write_xlsx("table/08-20200719-missings-pcr_presente-pr_perdido-n38.xlsx")
+  writexl::write_xlsx("table/previo/08-20200719-missings-pcr_presente-pr_perdido-n38.xlsx")
 
 uu_clean_data %>% 
   count(presente_prueba,igg,igm,ig_clasificacion,convResultado,positividad_peru)
@@ -1876,7 +1893,7 @@ uu_clean_data %>%
   # naniar::miss_var_summary() %>% 
   # avallecam::print_inf()
   # avallecam::print_inf()
-  writexl::write_xlsx("table/08-20200728-missings-nivel_educativo.xlsx")
+  writexl::write_xlsx("table/previo/08-20200728-missings-nivel_educativo.xlsx")
 
 # CALCULAR: nro viv ------------------------------------------------------
 
@@ -1914,7 +1931,7 @@ distrito_conglomerado_nro_viviendas %>%
   
 
 distrito_conglomerado_nro_viviendas %>% 
-  writexl::write_xlsx("table/06-ubigeo-conglomerado_numero_de_viviendas.xlsx")
+  writexl::write_xlsx("table/previo/06-ubigeo-conglomerado_numero_de_viviendas.xlsx")
 
 # diccionario_ponderaciones %>% 
 #   filter(conglomerado=="24474")

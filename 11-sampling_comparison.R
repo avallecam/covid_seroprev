@@ -88,9 +88,17 @@ aplot <- data_to_pyramid %>%
        x="Edad (años)",y="Sujetos (%)",fill="Participantes") #+
   # scale_fill_manual(alapha)
   # coord_flip()
-ggsave("figure/33-seroprev-figure04-a.png",height = 5,width = 9,dpi = "retina")
+ggsave("figure/33-seroprev-supp-figure01-a.png",height = 5,width = 9,dpi = "retina")
 
 # % difference plot -------------------------------------------------------
+
+data_to_pyramid %>% 
+  mutate(diff=loc_pct_value-ref_pct_value) %>% 
+  filter(sex=="h") %>% 
+  filter(magrittr::is_in(age,
+                         c("25_29a","30_34a","35_39a","40_44a","45_49a","50_54a","55_59a","60_64a"))) %>% 
+  summarise(across(diff,list(sum=sum,mean=mean,median=median))) %>% 
+  avallecam::print_inf()
 
 bplot <- data_to_pyramid %>% 
   mutate(sex=case_when(
@@ -103,11 +111,11 @@ bplot <- data_to_pyramid %>%
   geom_col(position = position_dodge()) +
   geom_hline(aes(yintercept=0),lty=2) +
   colorspace::scale_fill_discrete_qualitative() +
-  scale_y_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::percent_format(),breaks = scales::breaks_pretty(10)) +
   coord_flip() +
   labs(title = "Diferencia entre participantes y población por edad y sexo.",
        subtitle = "Población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
        x="Edad (años)",y="Diferencia (%)\n % participantes - % poblacion",fill="")
-ggsave("figure/33-seroprev-figure04-b.png",height = 5,width = 9,dpi = "retina")
+ggsave("figure/33-seroprev-supp-figure01-b.png",height = 5,width = 9,dpi = "retina")
 # aplot
 # bplot
