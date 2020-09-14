@@ -718,8 +718,8 @@ figura02 <- outcome_01_adj_tbl %>%
   mutate(source=fct_recode(source,
                             # "IgM+"="igm","IgG+"="igg",
                             "Raw"="raw",
-                            "Sampling design only"="prop",
-                            "Sampling design and\nTest validity"="adj",
+                            "Sampling weights only"="prop",
+                            "Sampling weights and\nTest uncertainty"="adj",
                             ))
 
 figura02 %>% 
@@ -753,8 +753,10 @@ shapes_diris <- read_rds("data/per4-shp_distritos_janitor_diris.rds") %>%
 figure_03_map <- outcome_01_adj_tbl %>% 
   filter(magrittr::is_in(denominator,c("diris"))) %>% 
   filter(numerator=="ig_clasificacion") %>% 
+  # TRANSLATE OR change to ONLY NUMBERS UNITE2
   mutate(category=denominator_level) %>% 
-  mutate(category=if_else(category=="CALLAO",category,str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
+  mutate(category=if_else(category=="CALLAO",category,
+                          str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
   mutate(prevalence_map=str_c(category,"\n",unite1_adj_dot_unk_p50)) %>% 
   left_join(shapes_diris %>% select(-n,denominator_level=diris)) %>% 
   mutate(proportion=adj_dot_unk_p50)

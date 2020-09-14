@@ -1420,7 +1420,60 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   mutate(prueba_previa=case_when(
     telefono=="999999999" & str_starts(codigo_err,"MAR|kev") ~ NA_character_,
     TRUE ~ prueba_previa
+  )) %>% 
+  
+  #' 
+  #' [ULTIMAS POST-CATEGORIZACIONES]
+  #' 
+  
+  # fusion: post-categorization of contacts with tipes
+  mutate(contacto_covid_tipo=case_when(
+    contacto_covid=="si"~str_c(contacto_covid,"_",contacto_tipo),
+    TRUE~contacto_covid
+  )) %>% 
+  
+  
+  # fusion: solo sintomaticos covid
+  mutate(sintomas_cualquier_momento_cat_fecha_14d_v1=case_when(
+    sintomas_cualquier_momento_cat=="sinto_covid" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="si" ~ "sinto_covid_onset_u14d_si",
+    sintomas_cualquier_momento_cat=="sinto_covid" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="no" ~ "sinto_covid_onset_u14d_no",
+    sintomas_cualquier_momento_cat=="sinto_covid" & is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d) ~ "sinto_covid_onset_u14d_missing",
+    TRUE ~ sintomas_cualquier_momento_cat
+  )) %>% 
+  
+  # fusion: también oligosintomaticos
+  mutate(sintomas_cualquier_momento_cat_fecha_14d_v2=case_when(
+    
+    sintomas_cualquier_momento_cat=="sinto_covid" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="si" ~ "sinto_covid_onset_u14d_si",
+    sintomas_cualquier_momento_cat=="sinto_covid" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="no" ~ "sinto_covid_onset_u14d_no",
+    sintomas_cualquier_momento_cat=="sinto_covid" & is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d) ~ "sinto_covid_onset_u14d_missing",
+    
+    sintomas_cualquier_momento_cat=="sinto_oligo" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="si" ~ "sinto_oligo_onset_u14d_si",
+    sintomas_cualquier_momento_cat=="sinto_oligo" & fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d=="no" ~ "sinto_oligo_onset_u14d_no",
+    sintomas_cualquier_momento_cat=="sinto_oligo" & is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d) ~ "sinto_oligo_onset_u14d_missing",
+    TRUE ~ sintomas_cualquier_momento_cat
   ))
+
+
+# ___ qc contact and symptoms classification
+
+uu_clean_data_pre %>%
+  count(contacto_covid,contacto_tipo,contacto_covid_tipo)
+
+
+uu_clean_data_pre %>%
+  # select(contains("sintomas"),contains("inicio")) %>% 
+  # select(sintomas_cualquier_momento_cat,
+  #        fecha_inicio_sintomas,
+  #        fecha_inicio_sintomas_previo,
+  #        fecha_prueba_inicio_sintomas_diff_cat,
+  #        fecha_prueba_inicio_sintomas_previo_diff_cat,
+  #        fecha_prueba_inicio_sintomas_cualquier_momento_cat,
+  #        fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d,
+  #        fecha_inicio_sintomas_14d) %>% 
+  # glimpse()
+  # avallecam::print_inf()
+  count(sintomas_cualquier_momento_cat_fecha_14d_v1,sintomas_cualquier_momento_cat_fecha_14d_v2)
 
 
 # _ pre step --------------------------------------------------------------
@@ -1448,6 +1501,8 @@ uu_clean_data %>%
 
 # read_rds("data/uu_clean_data.rds") %>%
 #   writexl::write_xlsx("data/uu_clean_data.xlsx")
+
+uu_clean_data %>% glimpse()
 
 # __ reporte: flowchart --------------------------------------------------------------
 
