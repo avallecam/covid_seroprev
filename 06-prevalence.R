@@ -214,7 +214,8 @@ uu_clean_data %>%
                              show.p.overall = F,
                              # show.ratio = T,
                              show.n = T) %>%
-  compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+  # compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+  compareGroups::export2xls("table/02-seroprev-supp-table01-a.xls")
 
 # uu_clean_data %>%
 #   compareGroups::compareGroups(positividad_peru~.,data = .,max.xlev = 20,
@@ -592,12 +593,12 @@ outcome_01_adj_tbl %>%
 outcome_01_adj_tbl %>% 
   select(1:4,starts_with("unite1_")) %>% 
   filter(numerator=="positividad_peru") %>% 
-  writexl::write_xlsx("table/02-seroprev-supp-table01.xlsx")
+  writexl::write_xlsx("table/02-seroprev-supp-table03.xlsx")
 
 outcome_01_adj_tbl %>% 
   select(1:4,starts_with("unite1_")) %>% 
   filter(!(denominator=="positividad_peru")) %>% 
-  writexl::write_xlsx("table/02-seroprev-supp-table02.xlsx")
+  writexl::write_xlsx("table/02-seroprev-supp-table04.xlsx")
 
 
 # figure ------------------------------------------------------------------
@@ -655,8 +656,8 @@ figura01 <- outcome_01_adj_tbl %>%
                                       "18-29"="joven",
                                       "30-59"="adulto",
                                       "60+"="adulto_mayor",
-                                      "Femenine"="femenino",
-                                      "Masculine"="masculino",
+                                      "Female"="femenino",
+                                      "Male"="masculino",
                                       "No"="no",
                                       "Yes"="si",
                                       "Unknown"="desconocido",

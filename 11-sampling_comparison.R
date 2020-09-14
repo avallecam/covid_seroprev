@@ -1,5 +1,7 @@
 library(tidyverse)
+library(magrittr)
 
+theme_set(theme_bw())
 
 # reunis inei -------------------------------------------------------------
 
@@ -58,7 +60,22 @@ popstr_study %>% count(sex)
 popstr_study %>% count(age)
 
 data_to_pyramid <- popstr_reference %>% 
-  left_join(popstr_study)
+  left_join(popstr_study) %>% 
+  mutate(sex_label=case_when(
+    # sex=="m"~"Mujer con PR",
+    # sex=="h"~"Hombre con PR"
+    sex=="m"~"Female",
+    sex=="h"~"Male"
+  )) %>% 
+  mutate(diff=loc_pct_value-ref_pct_value) %>% 
+  mutate(age_label=str_replace(age,"_","-")) %>% 
+  mutate(age_label=str_replace(age_label,"a","")) %>% 
+  mutate(age_label=str_replace(age_label,"nn","+")) %>% 
+  mutate(age_label=str_replace(age_label,"\\-\\+","+")) %>%
+  mutate(age_label=str_replace(age_label,"00-00","<0"))
+
+data_to_pyramid %>% 
+  avallecam::print_inf()
 
 # pyramid plot ------------------------------------------------------------
 
@@ -69,11 +86,10 @@ aplot <- data_to_pyramid %>%
          loc_pct_value=loc_pct_value*100) %>% 
   mutate(ref_pct_value=if_else(sex=="m",-ref_pct_value,ref_pct_value),
          loc_pct_value=if_else(sex=="m",-loc_pct_value,loc_pct_value)) %>%
-  mutate(sex=case_when(
-    sex=="m"~"Mujer con PR",
-    sex=="h"~"Hombre con PR"
-  )) %>% 
-  mutate(sex=fct_relevel(sex,"Mujer con PR")) %>% 
+  mutate(sex=sex_label) %>% 
+  mutate(age=age_label) %>% 
+  # mutate(sex=fct_relevel(sex,"Mujer con PR")) %>% 
+  mutate(sex=fct_relevel(sex)) %>% 
   ggplot() +
   geom_bar(aes(age,loc_pct_value,fill=sex),stat = "identity") +
   geom_bar(aes(age,ref_pct_value),color="black",alpha=0,stat = "identity") +
@@ -83,39 +99,57 @@ aplot <- data_to_pyramid %>%
                      #labels = scales::percent_format(accuracy = 1)
                      ) +
   colorspace::scale_fill_discrete_qualitative(rev=T) +
-  labs(title = "Distribución de participantes por edad y sexo con Prueba Rápida (PR)",
-       subtitle = "Comparación con población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
-       x="Edad (años)",y="Sujetos (%)",fill="Participantes") #+
+  labs(
+    # title = "Distribución de participantes por edad y sexo con Prueba Rápida (PR)",
+    # subtitle = "Comparación con población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
+    # x="Edad (años)",y="Sujetos (%)",fill="Participantes"
+    title = "Distribution of participants against population by age and sex",
+    subtitle = "Lima Metropolitan Area and Callao, 2020 (Source: REUNIS 2020)",
+    x="Age (years)",y="Participants (%)",
+    fill="Participants with\na serological test\nresult"
+  ) #+
   # scale_fill_manual(alapha)
   # coord_flip()
+# aplot
 ggsave("figure/33-seroprev-supp-figure01-a.png",height = 5,width = 9,dpi = "retina")
 
 # % difference plot -------------------------------------------------------
 
 data_to_pyramid %>% 
-  mutate(diff=loc_pct_value-ref_pct_value) %>% 
+  mutate(across(c(contains("_pct_"),diff), ~ .*100)) %>% 
+  writexl::write_xlsx("table/02-seroprev-supp-table02.xlsx")
+
+# summary results
+data_to_pyramid %>% 
   filter(sex=="h") %>% 
   filter(magrittr::is_in(age,
-                         c("25_29a","30_34a","35_39a","40_44a","45_49a","50_54a","55_59a","60_64a"))) %>% 
-  summarise(across(diff,list(sum=sum,mean=mean,median=median))) %>% 
-  avallecam::print_inf()
+                         c("25_29a","30_34a","35_39a","40_44a",
+                           "45_49a","50_54a","55_59a","60_64a"))) %>% 
+  summarise(across(diff,list(sum=sum,mean=mean,median=median)))
 
+# ggplot
 bplot <- data_to_pyramid %>% 
-  mutate(sex=case_when(
-    sex=="m"~"Mujer con PR",
-    sex=="h"~"Hombre con PR"
-  )) %>% 
-  mutate(diff=loc_pct_value-ref_pct_value) %>% 
-  # avallecam::print_inf()
+  mutate(sex=sex_label) %>% 
+  mutate(age=age_label) %>% 
   ggplot(aes(age,diff,fill=sex)) +
   geom_col(position = position_dodge()) +
   geom_hline(aes(yintercept=0),lty=2) +
   colorspace::scale_fill_discrete_qualitative() +
-  scale_y_continuous(labels = scales::percent_format(),breaks = scales::breaks_pretty(10)) +
+  scale_y_continuous(labels = scales::percent_format(),
+                     breaks = scales::breaks_pretty(10)) +
   coord_flip() +
-  labs(title = "Diferencia entre participantes y población por edad y sexo.",
-       subtitle = "Población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
-       x="Edad (años)",y="Diferencia (%)\n % participantes - % poblacion",fill="")
-ggsave("figure/33-seroprev-supp-figure01-b.png",height = 5,width = 9,dpi = "retina")
+  labs(
+    # title = "Diferencia entre participantes y población por edad y sexo.",
+    # subtitle = "Población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
+    # x="Edad (años)",
+    # y="Diferencia (%)\n % participantes - % poblacion",
+    # fill=""
+    title = "Difference between participants and population by age and sex",
+    subtitle = "Lima Metropolitan Area and Callao, 2020 (Source: REUNIS 2020)",
+    x="Age (years)",
+    y="Difference (%)\n % participants - % population",
+    fill="Participants with\na serological test\nresult"
+  )
+ggsave("figure/33-seroprev-supp-figure01-b.png",height = 5,width = 8,dpi = "retina")
 # aplot
 # bplot
