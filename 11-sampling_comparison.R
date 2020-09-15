@@ -134,7 +134,7 @@ bplot <- data_to_pyramid %>%
   ggplot(aes(age,diff,fill=sex)) +
   geom_col(position = position_dodge()) +
   geom_hline(aes(yintercept=0),lty=2) +
-  colorspace::scale_fill_discrete_qualitative() +
+  colorspace::scale_fill_discrete_qualitative(rev=T) +
   scale_y_continuous(labels = scales::percent_format(),
                      breaks = scales::breaks_pretty(10)) +
   coord_flip() +

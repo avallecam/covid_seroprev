@@ -240,6 +240,8 @@ covariate_set01 <- uu_clean_data %>%
          # nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,
+         sintomas_cualquier_momento_cat_fecha_14d_v1,
+         sintomas_cualquier_momento_cat_fecha_rangos,
          # riesgo,
          # ends_with("_ext"),
          # -contains("ninguna"),
@@ -247,7 +249,9 @@ covariate_set01 <- uu_clean_data %>%
          # -contains("salud"),
          # -contains("renal"),
          # -contains("60a"),
-         contacto_covid#,
+         contacto_covid,
+         contacto_covid_tipo,
+         prueba_previa
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
@@ -297,6 +301,8 @@ covariate_set02 <- uu_clean_data %>%
          # nro_dormitorios_cat,
          # nm_prov,
          sintomas_cualquier_momento_cat,
+         sintomas_cualquier_momento_cat_fecha_14d_v1,
+         sintomas_cualquier_momento_cat_fecha_rangos,
          # riesgo,
          # ends_with("_ext"),
          # -contains("ninguna"),
@@ -304,7 +310,9 @@ covariate_set02 <- uu_clean_data %>%
          # -contains("salud"),
          # -contains("renal"),
          # -contains("60a"),
-         contacto_covid#,
+         contacto_covid,
+         contacto_covid_tipo,
+         prueba_previa
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
@@ -525,19 +533,19 @@ outcome_01_adj_tbl <-
   unite_dotwhiskers(variable_dot = raw_prop, 
                     variable_low = raw_prop_low,
                     variable_upp = raw_prop_upp,
-                    digits_dot = 3,
-                    digits_low = 2,
-                    digits_upp = 3) %>% 
+                    digits_dot = 2,
+                    digits_low = 1,
+                    digits_upp = 2) %>% 
   unite_dotwhiskers(variable_dot = prop, 
                     variable_low = prop_low,
                     variable_upp = prop_upp,
                     digits_dot = 2,
-                    digits_low = 2,
-                    digits_upp = 3) %>% 
+                    digits_low = 1,
+                    digits_upp = 2) %>% 
   unite_dotwhiskers(variable_dot = adj_dot_unk_p50,
                     variable_low = adj_low_unk_p50,
                     variable_upp = adj_upp_unk_p50,
-                    digits_dot = 2,
+                    digits_dot = 3,
                     digits_low = 2,
                     digits_upp = 3)
 
@@ -546,6 +554,7 @@ outcome_01_adj_tbl <-
 
 outcome_01_adj_tbl %>% 
   select(1:4,starts_with("unite1_")) %>% 
+  # view()
   avallecam::print_inf()
 
 
@@ -581,23 +590,23 @@ outcome_01_adj_tbl %>%
   writexl::write_xlsx("table/00-seroprev-results.xlsx")
 
 outcome_01_adj_tbl %>% 
-  select(1:4,starts_with("unite1_")) %>% 
+  select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
   filter(numerator=="ig_clasificacion") %>% 
   writexl::write_xlsx("table/01-seroprev-table01.xlsx")
 
 outcome_01_adj_tbl %>% 
-  select(1:4,starts_with("unite1_")) %>% 
+  select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
   filter(denominator=="ig_clasificacion") %>% 
   writexl::write_xlsx("table/01-seroprev-table02.xlsx")
 
 outcome_01_adj_tbl %>% 
-  select(1:4,starts_with("unite1_")) %>% 
+  select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
   filter(numerator=="positividad_peru") %>% 
   writexl::write_xlsx("table/02-seroprev-supp-table03.xlsx")
 
 outcome_01_adj_tbl %>% 
-  select(1:4,starts_with("unite1_")) %>% 
-  filter(!(denominator=="positividad_peru")) %>% 
+  select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
+  filter(denominator=="positividad_peru") %>% 
   writexl::write_xlsx("table/02-seroprev-supp-table04.xlsx")
 
 
@@ -609,30 +618,45 @@ outcome_01_adj_tbl %>%
 
 figura01 <- outcome_01_adj_tbl %>% 
   filter(!magrittr::is_in(denominator,c("diris","edad_decenios","nm_prov"))) %>%
+  filter(!magrittr::is_in(denominator,c("sintomas_cualquier_momento_cat_fecha_rangos"))) %>%
   filter(numerator=="ig_clasificacion"|numerator=="positividad_peru") %>% 
   mutate(denominator=as.factor(denominator),
          denominator_level=as.factor(denominator_level)) %>% 
-  mutate(denominator=fct_relevel(denominator,"survey_all","sexo")) %>%
+  mutate(denominator=fct_relevel(denominator,"survey_all",
+                                 "sexo",
+                                 "edad_etapas_de_vida_t")) %>%
   # grid title
   mutate(denominator=fct_recode(denominator,
                               # "Pob. General"="survey_all",
-                              "General Pop."="survey_all",
                               # "Sexo Biológico"="sexo",
-                              "Biological Sex"="sexo",
                               # "Etapas de Vida"="edad_etapas_de_vida_t",
-                              "Age (years)"="edad_etapas_de_vida_t",
                               # "Hacinamiento"="hacinamiento",
-                              "Overcrowding"="hacinamiento",
                               # "Pobreza"="pobreza_dico"
                               # "Síntomas"="sintomas_cualquier_momento_cat",
-                              "Symptoms"="sintomas_cualquier_momento_cat",
                               # "Contacto"="contacto_covid"
-                              "Contact"="contacto_covid"
+                              "General Pop."="survey_all",
+                              "Biological Sex"="sexo",
+                              "Age (years)"="edad_etapas_de_vida_t",
+                              "Overcrowding"="hacinamiento",
+                              "Symptoms"="sintomas_cualquier_momento_cat",
+                              "Contact"="contacto_covid",
+                              "Contact Type"="contacto_covid_tipo",
+                              "Previous Test"="prueba_previa",
+                              "Symptoms (by onset)"="sintomas_cualquier_momento_cat_fecha_14d_v1",
+                              # "Symptoms (by onset)."="sintomas_cualquier_momento_cat_fecha_rangos"
                               )
          ) %>%
   mutate(denominator_level=fct_relevel(denominator_level,
                                        "ninho","adolescente","joven","adulto",
-                                       "sinto_asint","sinto_oligo","sinto_covid")
+                                       "sinto_asint","sinto_oligo",
+                                       "sinto_covid_onset_u14d_si",
+                                       "no","si_contacto_tipo1",
+                                       "si_contacto_tipo3",
+                                       "si_contacto_tipo2",
+                                       "si_contacto_tipo45",
+                                       "desconocido"
+                                       # "sinto_covid"
+                                       )
          ) %>%
   mutate(denominator_level=fct_rev(denominator_level)) %>%
   mutate(denominator_level=fct_recode(denominator_level,
@@ -650,6 +674,7 @@ figura01 <- outcome_01_adj_tbl %>%
                                       # "Asintomático"="sinto_asint",
                                       # "Oligosintomático"="sinto_oligo",
                                       # "Sintomático"="sinto_covid"
+                                      
                                       "All"="survey_all",
                                       "0-11"="ninho",
                                       "12-17"="adolescente",
@@ -664,6 +689,18 @@ figura01 <- outcome_01_adj_tbl %>%
                                       "Asymptomatic"="sinto_asint",
                                       "Oligosymptomatic"="sinto_oligo",
                                       "Symptomatic"="sinto_covid",
+                                      # "Asymptomatic"="sinto_asint",
+                                      # "Oligosymptomatic"="sinto_oligo",
+                                      "Symptomatic\n(<=14 days before\nstudy visit)"="sinto_covid_onset_u14d_no",
+                                      "Symptomatic\n(>14 days before\nstudy visit)"="sinto_covid_onset_u14d_si",
+                                      # "Un miembro de su hogar" = "si_contacto_tipo1",
+                                      # "Otro miembro de la familia" = "si_contacto_tipo2",
+                                      # "Compañero del lugar donde trabaja" = "si_contacto_tipo3",
+                                      # "Otro" = "si_contacto_tipo45",
+                                      "Household member" = "si_contacto_tipo1",
+                                      "Other family member" = "si_contacto_tipo2",
+                                      "Workmate" = "si_contacto_tipo3",
+                                      "Other" = "si_contacto_tipo45",
                                       "With"="Con Hacinamiento",
                                       "Without"="Sin Hacinmaniento" #------------#
                                       )) %>%
@@ -682,14 +719,15 @@ figura01 %>%
                     proportion_low = prop_low) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
   coord_flip() +
-  facet_grid(denominator~.,scales = "free_y") +
+  facet_wrap(denominator~.,scales = "free_y") +
+  # facet_grid(denominator~.,scales = "free_y") +
   colorspace::scale_color_discrete_qualitative() +
-  labs(title = "SARS-CoV-2 Seroprevalence",
+  labs(title = "SARS-CoV-2 Prevalence by case definitions across covariates",
        subtitle = "Lima Metropolitan Area and Callao - Peru, July 2020",
        y = "Prevalence",x = "",
        color = "Case\ndefinition"#,size = "CV%"
   )
-ggsave("figure/00-seroprev-supp-figure01.png",height = 7,width = 7,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01.png",height = 7,width = 12,dpi = "retina")
 
 # __fig01: edad decenio -----------------------------------------------------------------
 
