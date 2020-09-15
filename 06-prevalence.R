@@ -793,9 +793,21 @@ figure_03_map <- outcome_01_adj_tbl %>%
   filter(numerator=="ig_clasificacion") %>% 
   # TRANSLATE OR change to ONLY NUMBERS UNITE2
   mutate(category=denominator_level) %>% 
-  mutate(category=if_else(category=="CALLAO",category,
-                          str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
-  mutate(prevalence_map=str_c(category,"\n",unite1_adj_dot_unk_p50)) %>% 
+  # # SPANISH
+  # mutate(category=if_else(category=="CALLAO",category,
+  #                         str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
+  # # ENGLISH
+  mutate(category=if_else(category=="CALLAO",
+                          category,
+                          str_replace(category,"DIRIS (.+)","\\1 LIMA"))) %>% 
+  mutate(category=case_when(
+    str_detect(category,"CENTRO") ~ str_replace(category,"CENTRO","CENTRAL"),
+    str_detect(category,"NORTE") ~ str_replace(category,"NORTE","NORTHERN"),
+    str_detect(category,"SUR") ~ str_replace(category,"SUR","SOUTHERN"),
+    str_detect(category,"ESTE") ~ str_replace(category,"ESTE","EASTERN"),
+    TRUE ~ category
+  )) %>% 
+  mutate(prevalence_map=str_c(category,"\n",unite2_adj_dot_unk_p50)) %>% 
   left_join(shapes_diris %>% select(-n,denominator_level=diris)) %>% 
   mutate(proportion=adj_dot_unk_p50)
   # mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
