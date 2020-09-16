@@ -2,6 +2,7 @@ library(covidPeru); library(readr)
 library(covid19viz)
 library(tidyverse)
 library(cdcper)
+library(lubridate)
 theme_set(theme_bw())
 
 # import surveillance data ------------------------------------------------
@@ -48,7 +49,7 @@ summarize_epiweek <- function(data,source) {
 }
 
 peru_sources <- positivos %>% 
-  summarize_epiweek(source = "Confirmed Cases") %>% 
+  summarize_epiweek(source = "COVID-19 Confirmed Cases") %>% 
   union_all(
     # fallecidos %>% 
     #   summarize_epiweek(source = "Confirmed Deaths")
@@ -103,7 +104,7 @@ ggplot() +
             aes(x = epi_date,y = n, color= source)) +
   colorspace::scale_color_discrete_qualitative() +
   # scale_y_log10() +
-  labs(title = "COVID-19 surveillance and Goverment interventions",
+  labs(title = "Surveillance data and Goverment interventions",
        subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
        x = "Epidemiological weeks",
        y = "Number of events (log scale)",
