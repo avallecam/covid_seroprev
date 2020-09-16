@@ -107,7 +107,7 @@ ggplot() +
   labs(title = "Surveillance data and Government interventions",
        subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
        x = "Epidemiological weeks",
-       y = "Number of events (log scale)",
+       y = "Number of events",
        fill = "Interventions",
        color = "Surveillance")
 
