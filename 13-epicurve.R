@@ -5,17 +5,16 @@ library(cdcper)
 library(lubridate)
 theme_set(theme_bw())
 
-# import surveillance data ------------------------------------------------
 
-# covidPeru R package
-positivos <- da_positivos()
-fallecidos <- da_fallecidos()
-sinadef <- da_sinadef() %>% 
-  rename(PROVINCIA=`PROVINCIA DOMICILIO`)
+# analysis time limits --------------------------------------------------------------
 
-# import intervention data ------------------------------------------------
+min_analysis_date <- ymd(20200301)
+max_analysis_date <- ymd(20200801)
 
-# covid19viz R package
+# covid19viz R package ----------------------------------------------------
+
+# _import intervention data ------------------------------------------------
+
 unesco <- read_unesco_education()
 acaps <- read_acaps_governments()
 
@@ -35,10 +34,36 @@ unesco_peru <- unesco %>%
   ))
 unesco_peru
 
-# count by epiweek --------------------------------------------------------
+# _unite intervention data -------------------------------------------------
 
-min_analysis_date <- ymd(20200301)
-max_analysis_date <- ymd(20200801)
+interventions <- tibble(
+  date_min = ymd(20200628), 
+  date_max = ymd(20200709),
+  intervention_label = "Seroprevalence study",
+  intervention = "seroprev"
+) %>% 
+  union_all(
+    unesco_peru %>% 
+      mutate(date_max=if_else(date_max==max(date_max),
+                              max_analysis_date,
+                              date_max))
+  )
+interventions
+
+interventions %>% 
+  writexl::write_xlsx("table/02-seroprev-supp-table05.xlsx")
+
+# covidPeru R package -----------------------------------------------------
+
+
+# _import surveillance data ------------------------------------------------
+
+positivos <- da_positivos()
+fallecidos <- da_fallecidos()
+sinadef <- da_sinadef() %>% 
+  rename(PROVINCIA=`PROVINCIA DOMICILIO`)
+
+# _count by epiweek + unite --------------------------------------------------------
 
 summarize_epiweek <- function(data,source) {
   data %>% 
@@ -72,21 +97,7 @@ peru_sources <- positivos %>%
       mutate(source = "All causes of Deaths\n(including COVID-19 confirmed)")
   )
 
-# unite intervention data -------------------------------------------------
-
-interventions <- tibble(
-  date_min = ymd(20200628), 
-  date_max = ymd(20200709),
-  intervention_label = "Seroprevalence study",
-  intervention = "seroprev"
-) %>% 
-  union_all(
-    unesco_peru %>% 
-      mutate(date_max=if_else(date_max==max(date_max),
-                              max_analysis_date,
-                              date_max))
-  )
-interventions
+peru_sources
 
 # create plot -------------------------------------------------------------
 
