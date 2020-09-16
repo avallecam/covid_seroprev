@@ -104,7 +104,7 @@ ggplot() +
             aes(x = epi_date,y = n, color= source)) +
   colorspace::scale_color_discrete_qualitative() +
   # scale_y_log10() +
-  labs(title = "Surveillance data and Goverment interventions",
+  labs(title = "Surveillance data and Government interventions",
        subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
        x = "Epidemiological weeks",
        y = "Number of events (log scale)",
