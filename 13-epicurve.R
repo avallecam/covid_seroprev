@@ -76,7 +76,7 @@ peru_sources <- positivos %>%
 
 interventions <- tibble(
   date_min = ymd(20200628), 
-  date_max = ymd(20200701),
+  date_max = ymd(20200709),
   intervention_label = "Seroprevalence study",
   intervention = "seroprev"
 ) %>% 
