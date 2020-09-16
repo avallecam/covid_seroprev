@@ -19,6 +19,11 @@ popstr_reference <- data_reunis %>%
   # count(sex,age) %>% 
   # avallecam::print_inf()
 
+# for 13-epicurve
+popstr_reference %>% 
+  group_by(ano) %>% 
+  summarise(across(starts_with("ref_"),sum))
+
 # local sutdy -------------------------------------------------------------
 
 

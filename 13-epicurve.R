@@ -1,7 +1,7 @@
 library(covidPeru); library(readr)
 library(covid19viz)
-library(tidyverse)
 library(cdcper)
+library(tidyverse)
 library(lubridate)
 theme_set(theme_bw())
 
@@ -97,7 +97,18 @@ peru_sources <- positivos %>%
       mutate(source = "All causes of Deaths\n(including COVID-19 confirmed)")
   )
 
-peru_sources
+peru_sources %>% 
+  arrange(desc(source),epi_date) %>% 
+  group_by(source) %>% 
+  mutate(cumsum=cumsum(n)) %>% 
+  # from 11-sampling_comparison
+  mutate(cumpct=cumsum/10742559*100) %>% 
+  mutate(epi_week=epiweek(epi_date)) %>% 
+  ungroup() %>% 
+  select(source,epi_date,epi_week,everything()) %>% 
+  # avallecam::print_inf()
+  writexl::write_xlsx("table/02-seroprev-supp-table06.xlsx")
+  
 
 # create plot -------------------------------------------------------------
 
@@ -120,7 +131,7 @@ ggplot() +
   # scale_y_log10() +
   labs(title = "Government interventions and Surveillance data",
        subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
-       x = "Epidemiological weeks",
+       x = "Epidemiological week",
        y = "Number of events",
        fill = "Interventions",
        color = "Surveillance")
