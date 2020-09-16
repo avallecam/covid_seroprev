@@ -7,6 +7,7 @@ theme_set(theme_bw())
 
 # import surveillance data ------------------------------------------------
 
+# covidPeru R package
 positivos <- da_positivos()
 fallecidos <- da_fallecidos()
 sinadef <- da_sinadef() %>% 
@@ -14,6 +15,7 @@ sinadef <- da_sinadef() %>%
 
 # import intervention data ------------------------------------------------
 
+# covid19viz R package
 unesco <- read_unesco_education()
 acaps <- read_acaps_governments()
 
@@ -67,7 +69,7 @@ peru_sources <- positivos %>%
       mutate(n = sum(c_across(Deaths:Sinadef),na.rm = T)) %>%
       ungroup() %>%
       select(-Deaths,-Sinadef) %>%
-      mutate(source = "Total Deaths")
+      mutate(source = "All causes of Deaths\n(including COVID-19 confirmed)")
   )
 
 # unite intervention data -------------------------------------------------
@@ -100,15 +102,16 @@ ggplot() +
   geom_vline(data = interventions %>% 
                filter(intervention=="seroprev"),
              aes(xintercept = date_max), lty=2) +
-  geom_line(data = peru_sources,
+  geom_line(data = peru_sources %>% 
+              mutate(source=fct_relevel(source,"COVID-19 Confirmed Cases")),
             aes(x = epi_date,y = n, color= source)) +
   colorspace::scale_color_discrete_qualitative() +
   # scale_y_log10() +
-  labs(title = "Surveillance data and Government interventions",
+  labs(title = "Government interventions and Surveillance data",
        subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
        x = "Epidemiological weeks",
        y = "Number of events",
        fill = "Interventions",
        color = "Surveillance")
 
-ggsave("figure/03-seroprev-figure03.png",dpi = "retina",height = 4,width = 6.5)
+ggsave("figure/03-seroprev-figure03.png",dpi = "retina",height = 3.5,width = 6)
