@@ -104,7 +104,7 @@ aplot <- data_to_pyramid %>%
     # subtitle = "Comparación con población en Lima y Callao para el 2020 (Fuente: REUNIS 2020)",
     # x="Edad (años)",y="Sujetos (%)",fill="Participantes"
     title = "Distribution of participants against population by age and sex",
-    subtitle = "Lima Metropolitan Area and Callao, 2020 (Source: REUNIS 2020)",
+    subtitle = "Reference: Lima Metropolitan Area estimates (Source: REUNIS 2020)",
     x="Age (years)",y="Participants (%)",
     fill="Participants with\na serological test\nresult"
   ) #+
@@ -145,7 +145,7 @@ bplot <- data_to_pyramid %>%
     # y="Diferencia (%)\n % participantes - % poblacion",
     # fill=""
     title = "Difference between participants and population by age and sex",
-    subtitle = "Lima Metropolitan Area and Callao, 2020 (Source: REUNIS 2020)",
+    subtitle = "Reference: Lima Metropolitan Area estimates (Source: REUNIS 2020)",
     x="Age (years)",
     y="Difference (%)\n % participants - % population",
     fill="Participants with\na serological test\nresult"

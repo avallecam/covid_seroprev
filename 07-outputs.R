@@ -1,5 +1,7 @@
 library(tidyverse)
 
+theme_set(theme_bw())
+
 source("10-prevalence_functions.R")
 
 # read --------------------------------------------------------------------
