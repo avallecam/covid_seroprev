@@ -1061,7 +1061,7 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   #                          true = NA_real_,
   #                          false = ind_hacin)) %>%
   mutate(hacinamiento=case_when(ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
-                                ind_hacin>=2.5 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
+                                ind_hacin>=3 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
   mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
   
   #' [CATEGORIZAR]
@@ -1462,7 +1462,20 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
     # sintomas_cualquier_momento_cat=="sinto_covid" & !is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat) ~ str_c(sintomas_cualquier_momento_cat,"_",fecha_prueba_inicio_sintomas_cualquier_momento_cat)
     # sintomas_cualquier_momento_cat=="sinto_covid" & is.na(fecha_prueba_inicio_sintomas_cualquier_momento_cat_14d) ~ "sinto_covid_onset_u14d_missing",
     TRUE ~ sintomas_cualquier_momento_cat
-  )) 
+  )) %>% 
+  
+  #' 
+  #' [PRUEBAS PREVIAS POSITIVAS]
+  #' 
+  
+  mutate(across(c(tipo_prueba_previa,
+                  resultado_pr_previa,
+                  resultado_pcr_previa),
+                str_replace_na,replacement = "")) %>% 
+  mutate(prueba_previa_cat=str_c(prueba_previa,"_",tipo_prueba_previa,"_",
+                                 resultado_pr_previa,"_",resultado_pcr_previa)) %>% 
+  mutate(prueba_previa_cat=if_else(prueba_previa_cat=="si_pr__",NA_character_,prueba_previa_cat)) %>% 
+  mutate(prueba_previa_rec=if_else(tipo_prueba_previa=="pcr","si_pcr",prueba_previa_cat))
   
   # # fusion: también oligosintomaticos
   # mutate(sintomas_cualquier_momento_cat_fecha_14d_v2=case_when(
@@ -1514,6 +1527,10 @@ uu_clean_data_pre %>%
         sintomas_cualquier_momento_cat_fecha_rangos,
         # sintomas_cualquier_momento_cat_fecha_14d_v2,
         fecha_prueba_inicio_sintomas_cualquier_momento_cat)
+
+uu_clean_data_pre %>% 
+  count(prueba_previa,tipo_prueba_previa,resultado_pr_previa,resultado_pcr_previa,
+        prueba_previa_cat,prueba_previa_rec)
 
 
 # _ pre step --------------------------------------------------------------

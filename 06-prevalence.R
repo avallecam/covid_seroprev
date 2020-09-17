@@ -159,52 +159,56 @@ uu_clean_data %>%
 
 # __ descripción poblacional -------------------------------------------------
 
-uu_clean_data %>%
+uu_clean_data %>% 
   select(survey_all,
          sexo,
-         edad_etapas_de_vida_c,
+         edad_inei_grupos_labels,
+         edad_quinquenal,
+         # edad_etapas_de_vida_c,
          # edad_etapas_de_vida_t,
-         edad_decenios,
+         # edad_decenios,
          # edad_quinquenal,
-         diris,
+         # diris,
          nm_prov,
+         # pais_origen,
          # starts_with("nm_"),
          # pobreza_dico,
-         tipo_vivienda,
+         # tipo_vivienda,
          agua,
          desague,
          electricidad,
-         nro_convivientes_cut,
-         nro_dormitorios_cut,
+         # nro_convivientes_cut,
+         # nro_dormitorios_cut,
          ind_hacin_cut,
          hacinamiento,
          # sintomas_cualquier_momento_cat,
          # riesgo,
-         ends_with("_ext"),
+         # ends_with("_ext"),
          # -contains("ninguna"),
          # -contains("otro"),
          # -contains("salud"),
          # -contains("renal"),
-         -contains("60a"),
+         # -contains("60a"),
          # contacto_covid,
-         etnia_cat,
+         # etnia_cat,
          # trabajo_reciente,
          # atencion,
          seguro_salud,
          convResultado,
          ig_clasificacion
   ) %>%
-  mutate(across(c(etnia_cat,
+  mutate(across(c(#etnia_cat,
                   seguro_salud,
                   desague,
-                  agua,
-                  tipo_vivienda),
+                  agua#,
+                  #tipo_vivienda
+                  ),
                 fct_infreq)) %>% 
   # compareGroups::compareGroups(ig_clasificacion~.,
   compareGroups::compareGroups(survey_all~.,
                                # include.miss = T,
                                data = .,
-                               max.xlev = 20,
+                               max.xlev = 30,
                                chisq.test.perm = TRUE,
                                # byrow = T
                                ) %>%
@@ -250,13 +254,14 @@ covariate_set01 <- uu_clean_data %>%
          # -contains("renal"),
          # -contains("60a"),
          contacto_covid,
-         contacto_covid_tipo,
-         prueba_previa
+         contacto_covid_tipo#,
+         # prueba_previa
+         #prueba_previa_cat#,
+         #prueba_previa_rec
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
          # seguro_salud,
-         # prueba_previa
          ) %>% 
   colnames()
 
@@ -311,13 +316,14 @@ covariate_set02 <- uu_clean_data %>%
          # -contains("renal"),
          # -contains("60a"),
          contacto_covid,
-         contacto_covid_tipo,
-         prueba_previa
+         contacto_covid_tipo#,
+         # prueba_previa
+         #prueba_previa_cat#,
+         #prueba_previa_rec
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
          # seguro_salud,
-         # prueba_previa
   ) %>% 
   colnames()
 
