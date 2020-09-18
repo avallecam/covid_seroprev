@@ -1468,14 +1468,13 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   #' [PRUEBAS PREVIAS POSITIVAS]
   #' 
   
-  mutate(across(c(tipo_prueba_previa,
-                  resultado_pr_previa,
-                  resultado_pcr_previa),
+  mutate(across(c(tipo_prueba_previa),
                 str_replace_na,replacement = "")) %>% 
-  mutate(prueba_previa_cat=str_c(prueba_previa,"_",tipo_prueba_previa,"_",
-                                 resultado_pr_previa,"_",resultado_pcr_previa)) %>% 
-  mutate(prueba_previa_cat=if_else(prueba_previa_cat=="si_pr__",NA_character_,prueba_previa_cat)) %>% 
-  mutate(prueba_previa_rec=if_else(tipo_prueba_previa=="pcr","si_pcr",prueba_previa_cat))
+  mutate(prueba_previa_cat=str_c(prueba_previa,"_",tipo_prueba_previa,"_"#,
+                                 #resultado_pr_previa,"_",resultado_pcr_previa
+  )) #%>% 
+  # mutate(prueba_previa_cat=if_else(prueba_previa_cat=="si_pr__",NA_character_,prueba_previa_cat)) #%>% 
+  # mutate(prueba_previa_rec=if_else(tipo_prueba_previa=="pcr","si_pcr",prueba_previa_cat))
   
   # # fusion: también oligosintomaticos
   # mutate(sintomas_cualquier_momento_cat_fecha_14d_v2=case_when(
@@ -1530,7 +1529,7 @@ uu_clean_data_pre %>%
 
 uu_clean_data_pre %>% 
   count(prueba_previa,tipo_prueba_previa,resultado_pr_previa,resultado_pcr_previa,
-        prueba_previa_cat,prueba_previa_rec)
+        prueba_previa_cat)
 
 
 # _ pre step --------------------------------------------------------------

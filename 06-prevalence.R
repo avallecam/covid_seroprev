@@ -256,9 +256,9 @@ covariate_set01 <- uu_clean_data %>%
          # -contains("renal"),
          # -contains("60a"),
          contacto_covid,
-         contacto_covid_tipo#,
-         # prueba_previa
-         #prueba_previa_cat#,
+         contacto_covid_tipo,
+         prueba_previa,
+         prueba_previa_cat#,
          #prueba_previa_rec
          # etnia_cat,
          # trabajo_reciente,
@@ -318,9 +318,9 @@ covariate_set02 <- uu_clean_data %>%
          # -contains("renal"),
          # -contains("60a"),
          contacto_covid,
-         contacto_covid_tipo#,
-         # prueba_previa
-         #prueba_previa_cat#,
+         contacto_covid_tipo,
+         prueba_previa,
+         prueba_previa_cat#,
          #prueba_previa_rec
          # etnia_cat,
          # trabajo_reciente,
