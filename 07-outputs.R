@@ -2,7 +2,9 @@ library(tidyverse)
 
 theme_set(theme_bw())
 
-source("10-prevalence_functions.R")
+# source("10-prevalence_functions.R")
+
+library(serosurvey)
 
 # read --------------------------------------------------------------------
 

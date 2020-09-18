@@ -25,9 +25,11 @@ theme_set(theme_bw())
 
 # functions ---------------------------------------------------------------
 
-source("10-prevalence_functions.R")
+# source("10-prevalence_functions.R")
 
-source("08-uncertainty_prev.R")
+# source("08-uncertainty_prev.R")
+
+library(serosurvey)
 
 set.seed(33)
 
@@ -38,13 +40,13 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
          weight_nul=1) %>% 
   # transformar a factor (prevlaencia ajustada)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = as.factor) %>% 
-  # transformar a numerico (prevalencia cruda)
-  mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = list("num"=outcome_to_numeric)) %>% 
-  # extender respuestas por condicicion de riesgo
-  mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
-            .funs = list("ext"=~riesgo_extend_na(variable = .x,referencia = riesgo))) #%>% 
+            .funs = as.factor) #%>% 
+  # # transformar a numerico (prevalencia cruda)
+  # mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
+  #           .funs = list("num"=outcome_to_numeric)) %>% 
+  # # extender respuestas por condicicion de riesgo
+  # mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
+  #           .funs = list("ext"=~riesgo_extend_na(variable = .x,referencia = riesgo))) #%>% 
   # # de ord a fct
   # mutate(edad_decenios=as.character(edad_decenios),
   #        edad_decenios=as.factor(edad_decenios))
@@ -357,29 +359,29 @@ design <- uu_clean_data %>%
 #' 1. fraccion de positivos en cada grupo de sinto, oligo, asinto
 #' 2. fraccion de sinto, oligo, asinto en el grupo de positivos o negativos
 
-# cdc_survey_proportion(design = design,
+# serosvy_proportion(design = design,
 #                       denominator = sintomas_cualquier_momento_cat,
 #                       numerator = ig_clasificacion) %>% 
 #   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
 # 
-# cdc_survey_proportion(design = design,
+# serosvy_proportion(design = design,
 #                       denominator = ig_clasificacion,
 #                       numerator = sintomas_cualquier_momento_cat) %>% 
 #   select(-ends_with("_low"),-ends_with("_upp"),-ends_with("_cv"),-ends_with("_deff"))
 # 
-# cdc_survey_proportion(design = design,
+# serosvy_proportion(design = design,
 #                       denominator = edad_decenios,
 #                       numerator = ig_clasificacion) %>% 
 #   select(-ends_with("_cv"),-ends_with("_deff"),-ends_with("_se"),-denominator,-numerator)
 # 
-# cdc_survey_proportion(design = design,
+# serosvy_proportion(design = design,
 #                       denominator = survey_all,
 #                       numerator = ig_clasificacion) %>% 
 #   glimpse()
 #   # select(#-ends_with("_low"),-ends_with("_upp"),
 #   #   -ends_with("_cv"),-ends_with("_deff"))
 # 
-# cdc_survey_proportion(design = design,
+# serosvy_proportion(design = design,
 #                       denominator = sexo,
 #                       numerator = ig_clasificacion) %>% 
 #   select(#-ends_with("_low"),-ends_with("_upp"),
@@ -411,7 +413,7 @@ outcome_01_pre <-
   # estimar prevalencia
   
   mutate(output=pmap(.l = select(.,design,denominator,numerator),
-                     .f = cdc_survey_proportion)) %>% 
+                     .f = serosvy_proportion)) %>% 
   
   # mutate(output=map(.x = output,.f = tidy_srvyr_tibble)) %>% 
   select(-design,-denominator,-numerator) %>% 
