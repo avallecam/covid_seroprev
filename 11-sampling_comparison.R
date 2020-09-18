@@ -129,7 +129,8 @@ data_to_pyramid %>%
   filter(sex=="h") %>% 
   filter(magrittr::is_in(age,
                          c("25_29a","30_34a","35_39a","40_44a",
-                           "45_49a","50_54a","55_59a","60_64a"))) %>% 
+                           "45_49a","50_54a","55_59a"#,"60_64a"
+                           ))) %>% 
   summarise(across(diff,list(sum=sum,mean=mean,median=median)))
 
 # ggplot
