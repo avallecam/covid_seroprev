@@ -5,11 +5,11 @@
 #' write_rds("data/uu_clean_data.rds")
 #' 
 #' PENDIENTES:
-#' ( ) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
-#' ( ) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + ggprevalence (in 10-...R + workflow!
-#' ( ) package: doi it with JOSS + add batch to github
-#' ( ) metadata: doi it in zenodo
-#' ( ) instrument: doi in zenodo or osf
+#' (x) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
+#' (x) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + ggprevalence (in 10-...R)
+#' ( ) package: add workflow!
+#' ( ) package: doi it with zenodo->JOSS + add batch to github
+#' ( ) metadata: project + instrument doi it in zenodo
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 

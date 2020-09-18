@@ -209,7 +209,7 @@ figura02 %>%
        y = "Prevalence",x = "Age (years)",
        color = "Estimate"#,size = "CV%"
   )
-ggsave("figure/01-seroprev-figure01.png",height = 4,width = 6.5,dpi = "retina")
+ggsave("figure/01-seroprev-figure01.png",height = 3.5,width = 6,dpi = "retina")
 
 # out0105 %>% 
 #   tidy_srvyr_tibble() %>% 
