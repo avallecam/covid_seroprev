@@ -7,7 +7,7 @@
 #' PENDIENTES:
 #' (x) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
 #' (x) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + ggprevalence (in 10-...R)
-#' ( ) package: add workflow!
+#' (x) package: add workflow!
 #' ( ) package: doi it with zenodo->JOSS + add batch to github
 #' ( ) metadata: project + instrument doi it in zenodo
 #' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
@@ -260,8 +260,8 @@ covariate_set01 <- uu_clean_data %>%
          contacto_covid,
          contacto_covid_tipo,
          prueba_previa,
-         prueba_previa_cat#,
-         #prueba_previa_rec
+         prueba_previa_cat,
+         prueba_previa_res
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
@@ -322,8 +322,8 @@ covariate_set02 <- uu_clean_data %>%
          contacto_covid,
          contacto_covid_tipo,
          prueba_previa,
-         prueba_previa_cat#,
-         #prueba_previa_rec
+         prueba_previa_cat,
+         prueba_previa_res
          # etnia_cat,
          # trabajo_reciente,
          # atencion,
