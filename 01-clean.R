@@ -1471,6 +1471,7 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   mutate(across(c(tipo_prueba_previa),
                 str_replace_na,replacement = "")) %>% 
   mutate(prueba_previa_cat=str_c(prueba_previa,"_",tipo_prueba_previa)) %>% 
+  mutate(resultado_pcr_previa=if_else(resultado_pcr_previa=="postivo","positivo",resultado_pcr_previa)) %>% 
   mutate(prueba_previa_res=coalesce(resultado_pcr_previa,resultado_pr_previa)) %>% 
   mutate(across(c(prueba_previa_res),
                 str_replace_na,replacement = "")) %>% 
@@ -1532,7 +1533,8 @@ uu_clean_data_pre %>%
 uu_clean_data_pre %>% 
   count(prueba_previa,tipo_prueba_previa,resultado_pr_previa,resultado_pcr_previa,
         prueba_previa_cat,prueba_previa_res)
-
+uu_clean_data_pre %>% count(prueba_previa_res)
+uu_clean_data_pre %>% count(prueba_previa_cat)
 
 # _ pre step --------------------------------------------------------------
 
