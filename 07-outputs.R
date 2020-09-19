@@ -79,6 +79,8 @@ figura01 <- outcome_01_adj_tbl %>%
                                 "Contact"="contacto_covid",
                                 "Contact Type"="contacto_covid_tipo",
                                 "Previous Test"="prueba_previa",
+                                "Previous Test (Type)"="prueba_previa_cat",
+                                "Previous Test (Result)"="prueba_previa_res",
                                 "Symptoms (by onset)"="sintomas_cualquier_momento_cat_fecha_14d_v1",
                                 # "Symptoms (by onset)."="sintomas_cualquier_momento_cat_fecha_rangos"
   )
@@ -156,7 +158,7 @@ figura01 %>%
                     proportion_low = prop_low) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
   coord_flip() +
-  facet_wrap(denominator~.,scales = "free_y") +
+  facet_wrap(denominator~.,scales = "free_y",ncol = 3) +
   # facet_grid(denominator~.,scales = "free_y") +
   colorspace::scale_color_discrete_qualitative() +
   labs(title = "SARS-CoV-2 Prevalence by case definitions across covariates",
@@ -164,7 +166,7 @@ figura01 %>%
        y = "Prevalence",x = "",
        color = "Case\ndefinition"#,size = "CV%"
   )
-ggsave("figure/00-seroprev-supp-figure01.png",height = 7,width = 12,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01.png",height = 10,width = 12,dpi = "retina")
 
 # __fig01: edad decenio -----------------------------------------------------------------
 
