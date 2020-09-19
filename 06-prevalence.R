@@ -555,7 +555,7 @@ outcome_01_adj_tbl <-
   unite_dotwhiskers(variable_dot = adj_dot_unk_p50,
                     variable_low = adj_low_unk_p50,
                     variable_upp = adj_upp_unk_p50,
-                    digits_dot = 3,
+                    digits_dot = 2,
                     digits_low = 2,
                     digits_upp = 3)
 
