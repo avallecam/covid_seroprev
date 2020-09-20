@@ -442,10 +442,11 @@ outcome_01_adj_pre <- outcome_01_pre %>%
             .funs = list("round"=round),digits = 0) %>%
   # unknown test local validation results
   # for sensitivity:
-  # 30 sars-cov-2 positives
+  # 30 true positives among 30 RT-PCR sars-cov-2 positive samples
   # for specificity:
-  # 50 sars-cov-2 negatives
-  # 50 prepandemic with other pathogens
+  # 0 false positives among 50 RT-PCR sars-cov-2 negative samples
+  # for cross reactivity:
+  # 2 false positives among 50 prepandemic samples positives for other pathogens
   mutate(
     true_positive = 30,
     false_negative = 0,
