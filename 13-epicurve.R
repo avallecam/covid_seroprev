@@ -16,10 +16,10 @@ max_analysis_date <- ymd(20200801)
 # _import intervention data ------------------------------------------------
 
 unesco <- read_unesco_education()
-acaps <- read_acaps_governments()
+# acaps <- read_acaps_governments()
 
 # no data in ACAPS
-acaps %>% filter(ISO3=="PER")
+# acaps %>% filter(ISO3=="PER")
 
 unesco_peru <- unesco %>% 
   filter(ISO=="PER") %>% 
@@ -52,6 +52,57 @@ interventions
 
 interventions %>% 
   writexl::write_xlsx("table/02-seroprev-supp-table05.xlsx")
+
+# mobility data -----------------------------------------------------------
+
+mobility <- read_google_region_country(country_iso = "PE")
+# mobility %>% count(sub_region_1) %>% print(n=Inf)
+# mobility %>% count(country_region,sub_region_1,sub_region_2,metro_area) %>% print(n=Inf)
+mobility_lima <- mobility %>% 
+  filter(date<max_analysis_date) %>% 
+  filter(
+    magrittr::is_in(sub_region_1,c("Metropolitan Municipality of Lima",
+                                   "Callao Region"))) %>% 
+  mutate(across(c(sub_region_1,sub_region_2,metro_area),
+                str_replace_na,replacement = "")) %>% 
+  mutate(subregion=str_c(sub_region_1,"\n",sub_region_2,"\n",metro_area)) %>% 
+  mutate(subregion=str_trim(subregion)) %>% 
+  mutate(subregion=if_else(sub_region_1=="Metropolitan Municipality of Lima",
+                           "Metropolitan Municipality\nof Lima",subregion)) %>% 
+  # count(country_region,subregion)
+  filter(!(sub_region_1=="Metropolitan Municipality of Lima" &
+             sub_region_2=="")) %>%
+  # count(country_region,sub_region_1,sub_region_2,metro_area,subregion)
+  # pivot_longer()
+  pivot_longer(cols = -c(country_region_code:date,subregion),
+               names_to = "field",
+               names_pattern = "(.+)_percent_change_from_baseline",
+               values_to = "percent_change_from_baseline")
+
+mobility_lima %>% 
+  mutate(field=str_replace_all(field,"_"," "),
+         field=str_to_sentence(field)) %>% 
+  ggplot() +
+  geom_rect(data = interventions,
+            aes(xmin = date_min, xmax = date_max, 
+                ymin = -Inf, ymax = Inf, 
+                fill =intervention_label),
+            alpha=0.2) +
+  geom_hline(aes(yintercept=0),lty=2) +
+  geom_line(aes(x = date,percent_change_from_baseline, color=subregion)) +
+  geom_smooth(aes(x = date,percent_change_from_baseline, color=subregion),
+              span = 0.1) +
+  facet_wrap(~field) +
+  colorspace::scale_color_discrete_qualitative() +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  # theme(legend.position="bottom")
+  labs(title = "Government interventions and Mobility reports",
+       subtitle = "Lima Metropolitan Area and Callao Region, Peru 2020",
+       x = "Date",
+       y = "% change from baseline",
+       fill = "Interventions",
+       color = "Region")
+ggsave("figure/03-seroprev-figure04.png",dpi = "retina",height = 3.5,width = 7)
 
 # covidPeru R package -----------------------------------------------------
 
