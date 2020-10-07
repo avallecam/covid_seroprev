@@ -79,6 +79,8 @@ mobility_lima <- mobility %>%
                names_pattern = "(.+)_percent_change_from_baseline",
                values_to = "percent_change_from_baseline")
 
+# _ plot it ---------------------------------------------------------------
+
 mobility_lima %>% 
   mutate(field=str_replace_all(field,"_"," "),
          field=str_to_sentence(field)) %>% 
@@ -89,9 +91,15 @@ mobility_lima %>%
                 fill =intervention_label),
             alpha=0.2) +
   geom_hline(aes(yintercept=0),lty=2) +
-  geom_line(aes(x = date,percent_change_from_baseline, color=subregion)) +
+  # geom_line(aes(x = date,percent_change_from_baseline, color=subregion)) +
   geom_smooth(aes(x = date,percent_change_from_baseline, color=subregion),
               span = 0.1) +
+  geom_vline(data = interventions %>% 
+               filter(intervention=="seroprev"),
+             aes(xintercept = date_min), lty=3) +
+  geom_vline(data = interventions %>% 
+               filter(intervention=="seroprev"),
+             aes(xintercept = date_max), lty=3) +
   facet_wrap(~field) +
   colorspace::scale_color_discrete_qualitative() +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
@@ -102,7 +110,7 @@ mobility_lima %>%
        y = "% change from baseline",
        fill = "Interventions",
        color = "Region")
-ggsave("figure/03-seroprev-figure04.png",dpi = "retina",height = 3.5,width = 7)
+ggsave("figure/03-seroprev-figure04.png",dpi = "retina",height = 3.5,width = 8)
 
 # covidPeru R package -----------------------------------------------------
 
