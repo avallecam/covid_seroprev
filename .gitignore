@@ -10,3 +10,10 @@ indicadores_incompletos.R
 09-validation_lab.R
 12-issue_reprex.R
 *.Rhistory
+00-dictionary.R
+02-export_to_notification.R
+03-eess_location.R
+04-ins_listas.R
+08-uncertainty_prev.R
+10-prevalence_functions.R
+covid_serological_sampling.R
