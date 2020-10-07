@@ -10,7 +10,6 @@
 #' (x) package: add workflow!
 #' ( ) package: doi it with zenodo->JOSS + add batch to github
 #' ( ) metadata: project + instrument doi it in zenodo
-#' ( ) muestreo: calcular n o % de cobertura a nivel vivienda con respecto a nro convivientes
 
 
 library(tidyverse)
