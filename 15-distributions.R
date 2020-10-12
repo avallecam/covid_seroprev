@@ -28,7 +28,7 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
 # nivel hogar
 home_cases <- 
   uu_clean_data %>% #glimpse()
-  select(cd_dist,conglomerado,
+  select(cd_dist,conglomerado,PONDERACION,
          numero_vivienda,
          numero_hogar,
          nro_convivientes,
@@ -72,11 +72,20 @@ home_cases_ratio %>%
               .fn = str_replace,"numeric.p","pct_")
 
 plot_1 <- home_cases_ratio %>% 
-  # select(total_resultados,ratio)
-  # filter(ratio>0) %>%
-  ggplot(aes(ratio)) +
-  stat_ecdf(geom = "step",lwd=1)
-  # geom_histogram(binwidth = 0.01)
+  
+  # alt manual
+  select(x=ratio,w=PONDERACION) %>%
+  mutate(ecdf= ecdf(x)(x) ) %>%
+  mutate(ewcdf= spatstat::ewcdf(x = x,weights = w)(x) ) %>%
+  ggplot(aes(x = x,y = ewcdf)) +
+  # ggplot(aes(x = x,y = ecdf)) +
+  geom_step(lwd=1) +
+  ylim(0,1)
+  
+  # # alt ok
+  # ggplot() +
+  # stat_ecdf(aes(x = ratio),
+  #           geom = "step",lwd=1)
 
 # home_cases_ratio %>% 
 #   filter(ratio>0) %>% 
@@ -102,26 +111,41 @@ home_cases_ratio %>%
               .fn = str_replace,"numeric.p","pct_")
 
 plot_2 <- home_cases_ratio %>% 
-  # filter(ratio>0) %>% 
-  ggplot(aes(x = ratio,
-             # colour=hacinamiento
-             colour=ind_hacin_cut
-             )) +
-  stat_ecdf(geom = "step",lwd=1,alpha=0.7) +
+  
+  # alt manual
+  select(x=ratio,w=PONDERACION,strata=ind_hacin_cut) %>%
+  group_by(strata) %>% 
+  mutate(ecdf= ecdf(x)(x) ) %>%
+  mutate(ewcdf= spatstat::ewcdf(x = x,weights = w)(x) ) %>%
+  ungroup() %>% 
+  ggplot(aes(x = x,y = ewcdf,colour=strata)) +
+  # ggplot(aes(x = x,y = ecdf,colour=strata)) +
+  geom_step(lwd=1) +
+  ylim(0,1) +
+  
+  # # alt ok
+  # # filter(ratio>0) %>% 
+  # ggplot(aes(x = ratio,
+  #            # colour=hacinamiento
+  #            colour=ind_hacin_cut
+  #            )) +
+  # stat_ecdf(geom = "step",lwd=1,alpha=0.7) +
   colorspace::scale_color_discrete_qualitative()
 
 library(patchwork)
 plot_1 + 
+  coord_fixed() +
   labs(title = "Overall",
-       y="ECDF") +
+       y="EWCDF") +
   plot_2 +
+  coord_fixed() +
   labs(title = "By Overcrowding",
-       y="ECDF",
+       y="EWCDF",
        color = "") +
   plot_annotation(
     tag_levels = 'A',
-    title = 'Seropositive ratio at Home',
-    caption = "ECDF: Empirical Cumulative Distribution Function")
+    title = 'Distribution of the Seropositive Ratio at Home Level',
+    caption = "EWCDF: Empirical Weighted Cumulative Distribution Function")
 ggsave("figure/04-seroprev-figure05.png",height = 3.5,width = 6,dpi = "retina")
 
 
