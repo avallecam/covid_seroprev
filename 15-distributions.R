@@ -111,6 +111,38 @@ home_cases_ratio %>%
               .fn = str_replace,"numeric.p","pct_")
 
 plot_2 <- home_cases_ratio %>% 
+  mutate(hacinamiento=fct_recode(hacinamiento,
+                                 "With"="Con Hacinamiento",
+                                 "Without"="Sin Hacinmaniento")) %>% 
+  
+  # alt manual
+  select(x=ratio,w=PONDERACION,strata=hacinamiento) %>%
+  group_by(strata) %>% 
+  mutate(ecdf= ecdf(x)(x) ) %>%
+  mutate(ewcdf= spatstat::ewcdf(x = x,weights = w)(x) ) %>%
+  ungroup() %>% 
+  ggplot(aes(x = x,y = ewcdf,colour=strata)) +
+  # ggplot(aes(x = x,y = ecdf,colour=strata)) +
+  geom_step(lwd=1) +
+  ylim(0,1) +
+  
+  # # alt ok
+  # # filter(ratio>0) %>% 
+  # ggplot(aes(x = ratio,
+  #            # colour=hacinamiento
+  #            colour=ind_hacin_cut
+  #            )) +
+  # stat_ecdf(geom = "step",lwd=1,alpha=0.7) +
+  colorspace::scale_color_discrete_qualitative() +
+  theme(legend.background = element_rect(fill='transparent', 
+                                         colour='transparent',
+                                         # fill="white",
+                                         # colour ="white",
+                                         size=0, 
+                                         linetype="solid"),
+        legend.position = c(0.8, 0.25))
+
+plot_3 <- home_cases_ratio %>% 
   
   # alt manual
   select(x=ratio,w=PONDERACION,strata=ind_hacin_cut) %>%
@@ -130,23 +162,38 @@ plot_2 <- home_cases_ratio %>%
   #            colour=ind_hacin_cut
   #            )) +
   # stat_ecdf(geom = "step",lwd=1,alpha=0.7) +
-  colorspace::scale_color_discrete_qualitative()
+  colorspace::scale_color_discrete_qualitative() +
+  theme(legend.background = element_rect(fill='transparent', 
+                                         colour='transparent',
+                                         # fill="white",
+                                         # colour ="white",
+                                         size=0, 
+                                         linetype="solid"),
+        legend.position = c(0.8, 0.4))
 
 library(patchwork)
 plot_1 + 
   coord_fixed() +
   labs(title = "Overall",
+       x = "Seropositive Ratio",
        y="EWCDF") +
   plot_2 +
   coord_fixed() +
-  labs(title = "By Overcrowding",
+  labs(title = "By Overcrowding Cat.",
+       x = "Seropositive Ratio",
+       y="EWCDF",
+       color = "") +
+  plot_3 +
+  coord_fixed() +
+  labs(title = "By Overcrowding Index",
+       x = "Seropositive Ratio",
        y="EWCDF",
        color = "") +
   plot_annotation(
     tag_levels = 'A',
     title = 'Distribution of the Seropositive Ratio at Home Level',
     caption = "EWCDF: Empirical Weighted Cumulative Distribution Function")
-ggsave("figure/04-seroprev-figure05.png",height = 3.5,width = 6,dpi = "retina")
+ggsave("figure/04-seroprev-figure05.png",height = 3.5,width = 9,dpi = "retina")
 
 
 # # general
