@@ -223,6 +223,61 @@ ggsave("figure/01-seroprev-figure01.png",height = 3.5,width = 6,dpi = "retina")
 #   ggplot_prevalence()
 
 
+# __fig01: edad etapas [alternativa] -----------------------------------------------------------------
+
+
+figura02 <- outcome_01_adj_tbl %>% 
+  filter(magrittr::is_in(denominator,c("edad_etapas_de_vida_t"))) %>% 
+  filter(numerator=="ig_clasificacion") %>% 
+  select(1:4,
+         "raw_dot"=raw_prop,"raw_low"=raw_prop_low,"raw_upp"=raw_prop_upp,
+         "prop_dot"=prop,prop_low,prop_upp,
+         "adj_dot"=adj_dot_unk_p50,
+         "adj_low"=adj_low_unk_p50,
+         "adj_upp"=adj_upp_unk_p50) %>% 
+  pivot_longer(
+    cols = -denominator:-numerator_level,
+    names_to = "estimate",
+    values_to = "value"
+  ) %>% 
+  separate(estimate,into = c("source","type")) %>% 
+  pivot_wider(
+    names_from = type,
+    values_from = value
+  ) %>% 
+  mutate(source=fct_relevel(source,"raw","prop","adj")) %>% 
+  # avallecam::print_inf() 
+  mutate(source=fct_recode(source,
+                           # "IgM+"="igm","IgG+"="igg",
+                           "Raw"="raw",
+                           "Sampling weights only"="prop",
+                           "Sampling weights and\nTest uncertainty"="adj",
+  ))
+
+figura02 %>% 
+  mutate(denominator_level=fct_relevel(denominator_level,
+                                       "ninho","adolescente",
+                                       "joven","adulto")) %>% 
+  mutate(denominator_level=fct_recode(denominator_level,
+                                      "0-11"="ninho",
+                                      "12-17"="adolescente",
+                                      "18-29"="joven",
+                                      "30-59"="adulto",
+                                      "60+"="adulto_mayor")) %>% 
+  ggplot_prevalence(category = denominator_level,
+                    outcome = source,
+                    proportion = dot,
+                    proportion_upp = upp,
+                    proportion_low = low) +
+  colorspace::scale_color_discrete_qualitative(rev = TRUE) +
+  labs(title = "SARS-CoV-2 Seroprevalence Stratified by Age",
+       subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+       y = "Prevalence",x = "Age (years)",
+       color = "Estimate"#,size = "CV%"
+  )
+ggsave("figure/05-seroprev-figure01.png",height = 3.5,width = 6,dpi = "retina")
+
+
 
 # __fig02: espacial diris -----------------------------------------------------------------
 
