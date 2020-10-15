@@ -451,7 +451,56 @@ outcome_01_adj_pre <- outcome_01_pre %>%
 
 # __ only one -------------------------------------------------------------
 
+a <- outcome_01_adj_pre %>% 
+  filter(denominator=="survey_all") %>% 
+  select(1:5,
+         starts_with("prop"),
+         ends_with("_round"),
+         starts_with("true"),
+         starts_with("false")) %>% 
+  mutate(adj_dot_unk=future_pmap(
+    .l = select(.,
+                positive_number_test=total_round,
+                total_number_test=total_den_round),
+    .f = possibly(serosvy_unknown_sample_posterior_ii,
+                  otherwise = NA_real_),
+    true_positive = true_positive,
+    false_negative = false_negative,
+    false_positive = false_positive,
+    true_negative = true_negative)) 
 
+a %>% glimpse()
+
+tidy_result_out <- a %>%
+  select(adj_dot_unk) %>% 
+  unnest(adj_dot_unk) %>%
+  select(tidy) %>% 
+  unnest(tidy) 
+
+a %>%
+  select(adj_dot_unk) %>% 
+  unnest(adj_dot_unk) %>%
+  select(posterior) %>% 
+  unnest(posterior) %>%
+  rownames_to_column() %>%
+  pivot_longer(cols = -rowname,
+               names_to = "estimates",
+               values_to = "values") %>%
+  left_join(tidy_result_out,by = c("estimates"="skim_variable")) %>% 
+  ggplot(aes(x = values)) +
+  geom_histogram(aes(y=..density..),binwidth = 0.0005) +
+  geom_density(bw=0.0015) +
+  facet_grid(~estimates,scales = "free_x") +
+  geom_vline(aes(xintercept=numeric.p50),
+             color="red",lwd=1) +
+  geom_vline(aes(xintercept=numeric.p05),
+             color="red") +
+  geom_vline(aes(xintercept=numeric.p95),
+             color="red") +
+  scale_x_continuous(breaks = scales::pretty_breaks()) +
+  labs(title = "Posterior distribution of Seroprevalence, Sensitivity amd Specificity",
+       subtitle = "Median and 95% Credible Intervals. From sampling-weighted point estimate.")
+ggsave("figure/33-seroprev-supp-figure02.png",height = 3,width = 10,dpi = "retina")
   
 # __ apply + extract ----------------------------------------------------------------
 # 56-60sec por covariable 
