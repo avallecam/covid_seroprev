@@ -237,23 +237,27 @@ figure_03_map <- outcome_01_adj_tbl %>%
   filter(numerator=="ig_clasificacion") %>% 
   # TRANSLATE OR change to ONLY NUMBERS UNITE2
   mutate(category=denominator_level) %>% 
+  
   # # SPANISH
   # mutate(category=if_else(category=="CALLAO",category,
-  #                         str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>% 
+  #                         str_replace(category,"DIRIS (.+)","LIMA \\1"))) %>%
+  
   # # ENGLISH
   mutate(category=if_else(category=="CALLAO",
                           category,
-                          str_replace(category,"DIRIS (.+)","\\1 LIMA"))) %>% 
+                          str_replace(category,"DIRIS (.+)","\\1 LIMA"))) %>%
   mutate(category=case_when(
     str_detect(category,"CENTRO") ~ str_replace(category,"CENTRO","CENTRAL"),
     str_detect(category,"NORTE") ~ str_replace(category,"NORTE","NORTHERN"),
     str_detect(category,"SUR") ~ str_replace(category,"SUR","SOUTHERN"),
     str_detect(category,"ESTE") ~ str_replace(category,"ESTE","EASTERN"),
     TRUE ~ category
-  )) %>% 
+  )) %>%
+
   mutate(prevalence_map=str_c(category,"\n",unite2_adj_dot_unk_p50)) %>% 
   left_join(shapes_diris %>% select(-n,denominator_level=diris)) %>% 
   mutate(proportion=adj_dot_unk_p50)
+
 # mutate(outcome=fct_recode(outcome,"IgM+"="igm","IgG+"="igg",
 #                           "IgM+ o IgG+"="ig_clasificacion",
 #                           "IgM+ o IgG+ o PCR+"="positividad_peru",
@@ -298,12 +302,23 @@ figure_03_map %>%
                            size=3,
                            fontface = "bold") +
   # scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+  
+  # # SPANISH
+  # labs(title = "Seroprevalencia de SARS-CoV-2",
+  #      subtitle = "Lima Metropolitana, Perú: Junio 28 - Julio 9, 2020",
+  #      y = "Latitud",
+  #      x = "Longitud",
+  #      fill = "Prevalencia"#,size = "CV%"
+  # ) +
+  
+  # ENGLISH
   labs(title = "SARS-CoV-2 Seroprevalence Stratified in Space",
        subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        y = "Latitude",
        x = "Longitud",
        fill = "Prevalence"#,size = "CV%"
   ) +
+  
   annotation_scale(location = "bl", width_hint = 0.5) +
   annotation_north_arrow(location = "bl", 
                          which_north = "true",

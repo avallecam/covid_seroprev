@@ -451,7 +451,7 @@ outcome_01_adj_pre <- outcome_01_pre %>%
 
 # __ only one -------------------------------------------------------------
 
-a <- outcome_01_adj_pre %>% 
+out_one <- outcome_01_adj_pre %>% 
   filter(denominator=="survey_all") %>% 
   select(1:5,
          starts_with("prop"),
@@ -469,15 +469,23 @@ a <- outcome_01_adj_pre %>%
     false_positive = false_positive,
     true_negative = true_negative)) 
 
-a %>% glimpse()
+# out_one %>% glimpse()
 
-tidy_result_out <- a %>%
-  select(adj_dot_unk) %>% 
+tidy_result_out <- out_one %>%
+  select(adj_dot_unk) %>%
   unnest(adj_dot_unk) %>%
-  select(tidy) %>% 
+  select(tidy) %>%
   unnest(tidy) 
 
-a %>%
+# tidy_result_out %>% glimpse()
+
+out_one %>% 
+  select(-adj_dot_unk) %>% 
+  writexl::write_xlsx("table/03-seroprev-supp-table01.xlsx")
+tidy_result_out %>% 
+  writexl::write_xlsx("table/03-seroprev-supp-table02.xlsx")
+
+out_one %>%
   select(adj_dot_unk) %>% 
   unnest(adj_dot_unk) %>%
   select(posterior) %>% 
