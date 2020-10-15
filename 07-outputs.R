@@ -1,3 +1,11 @@
+#' 
+#' OBJECTIVES:
+#' - table with raw, population adjusted, test performance adjusted
+#' - figure 1 (overall, sex, age) showing the four outcomes!
+#' - figure 2 (age decenio) showing trend
+#' - figure 3 map per diris
+#' 
+
 library(tidyverse)
 
 theme_set(theme_bw())
@@ -16,9 +24,6 @@ outcome_01_adj_tbl <- readr::read_rds("data/outcome_01_adj_tbl.rds")
 #' figure 1 (overall, sex, age) showing the four outcomes!
 #' figure 2 (age decenio) showing trend
 #' figure 3 map per diris
-#' 
-#' more
-#' performance of surveillance due to underreporting
 
 
 # tables ------------------------------------------------------------------

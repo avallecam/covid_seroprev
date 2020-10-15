@@ -1,16 +1,9 @@
 #'
-#' OBJETIVO:
-#' - crear tablas de prevalencia usando survey design
-#' - temporalmente, creación y grabacion final de base limpia
-#' write_rds("data/uu_clean_data.rds")
+#' OBJETIVES:
+#' - create prevalence table output with survey design
+#' - correct seroprevalence due to missclassification
+#' write_rds("data/outcome_01_adj_tbl.rds")
 #' 
-#' PENDIENTES:
-#' (x) pasar funciones a paquete serosurvey (idea: combo project repo + package functions)
-#' (x) package: survey_proportion + unite_dotwhiskers (better for avallecam?) + application of performance correction + ggprevalence (in 10-...R)
-#' (x) package: add workflow!
-#' ( ) package: doi it with zenodo->JOSS + add batch to github
-#' ( ) metadata: project + instrument doi it in zenodo
-
 
 library(tidyverse)
 library(skimr)
@@ -454,6 +447,11 @@ outcome_01_adj_pre <- outcome_01_pre %>%
   ) %>% 
   rownames_to_column() %>%
   mutate(rowname=as.numeric(rowname))
+
+
+# __ only one -------------------------------------------------------------
+
+
   
 # __ apply + extract ----------------------------------------------------------------
 # 56-60sec por covariable 

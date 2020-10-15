@@ -1,3 +1,12 @@
+#' 
+#' OBJECTIVES:
+#' - performance of survey comparing to expected (census 2017 and inei 2020)
+#' write_xlsx("table/02-seroprev-supp-table02.xlsx")
+#' ggsave("figure/33-seroprev-supp-figure01-a.png")
+#' ggsave("figure/33-seroprev-supp-figure01-b.png")
+#' 
+
+
 library(tidyverse)
 library(magrittr)
 

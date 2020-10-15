@@ -1,10 +1,12 @@
 #' 
-#' OBJETIVOS:
+#' OBJETIVES:
 #' - make preliminary cleaning previous to QC evaluation
 #' - make oficial cleaned db prior to export
 #' write_csv(str_c("data/seroprev-hh-",my_timestap,".csv"))
 #' write_csv(str_c("data/seroprev-pp-",my_timestap,".csv"))
 #' write_rds("data/uu_raw_data.rds")
+#' write_rds("data/uu_clean_data.rds")
+#' 
 
 # packages ----------------------------------------------------------------
 

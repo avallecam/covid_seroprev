@@ -1,4 +1,14 @@
-library(covidPeru); library(readr)
+#' 
+#' OBJECTIVES:
+#' - interventions + oficial reports plot and tables
+#' writexl::write_xlsx("table/02-seroprev-supp-table05.xlsx")
+#' writexl::write_xlsx("table/02-seroprev-supp-table06.xlsx")
+#' ggsave("figure/03-seroprev-figure04.png")
+#' ggsave("figure/03-seroprev-figure03.png")
+#' 
+
+library(covidPeru)
+library(readr)
 library(covid19viz)
 library(cdcper)
 library(tidyverse)

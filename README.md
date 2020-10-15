@@ -40,3 +40,8 @@ population-based cross-sectional serological survey”**
 <!-- - 02 - exportación de resultados a SISCOVID e INS -->
 
 <!-- - 05 - script libre para la identificación de problemas a notificar y corregir -->
+
+## to do list
+
+  - ( ) package: doi it with zenodo-\>JOSS + add batch to github
+  - ( ) metadata: project + instrument doi it in zenodo
