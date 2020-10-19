@@ -8,7 +8,7 @@
 
 library(tidyverse)
 
-theme_set(theme_bw())
+theme_set(theme_classic())
 
 # source("10-prevalence_functions.R")
 
@@ -252,9 +252,7 @@ figura02 <- outcome_01_adj_tbl %>%
                            "Raw"="raw",
                            "Sampling weights only"="prop",
                            "Sampling weights and\nTest uncertainty"="adj",
-  ))
-
-figura02 %>% 
+  )) %>% 
   mutate(denominator_level=fct_relevel(denominator_level,
                                        "ninho","adolescente",
                                        "joven","adulto")) %>% 
@@ -263,19 +261,52 @@ figura02 %>%
                                       "12-17"="adolescente",
                                       "18-29"="joven",
                                       "30-59"="adulto",
-                                      "60+"="adulto_mayor")) %>% 
+                                      "60+"="adulto_mayor"))
+
+figura02_a <- figura02 %>% 
   ggplot_prevalence(category = denominator_level,
                     outcome = source,
                     proportion = dot,
                     proportion_upp = upp,
                     proportion_low = low) +
-  colorspace::scale_color_discrete_qualitative(rev = TRUE) +
-  labs(title = "SARS-CoV-2 Seroprevalence Stratified by Age",
-       subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+  colorspace::scale_color_discrete_qualitative(rev = TRUE)
+  #theme(axis.text.x = element_text(angle = NULL, vjust = NULL, hjust=NULL))
+
+library(cowplot)
+
+inset <- figura02_a +
+  theme(legend.position = "none",
+        # panel.background = element_rect(fill = "transparent"),
+        plot.background = element_rect(fill = "transparent", color = NA)
+        ) +
+  labs(x="",y="")
+
+main <- figura02_a +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = scales::pretty_breaks(n = 10),limits = c(0,1)) +
+  labs(#title = "SARS-CoV-2 Seroprevalence Stratified by Age",
+       #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        y = "Prevalence",x = "Age (years)",
        color = "Estimate"#,size = "CV%"
   )
-ggsave("figure/05-seroprev-figure01.png",height = 3.5,width = 6,dpi = "retina")
+
+done <- ggdraw() +
+  draw_plot(main) +
+  draw_plot(inset, x = 0.13, y = .44, 
+            width = .48, height = .55)
+
+png(filename = "figure/05-seroprev-figure01.png",
+    units="in", width=5, height=3.5, res=300
+    #height = 500,width = 550,res = 300
+    )
+plot(done)
+dev.off()
+
+# save_plot(filename = "figure/05-seroprev-figure01.png",
+#           plot = done,
+#           base_height = 3.5,base_width = 4#,
+#           # dpi = "retina"
+#           )
 
 
 
@@ -367,8 +398,8 @@ figure_03_map %>%
   # ) +
   
   # ENGLISH
-  labs(title = "SARS-CoV-2 Seroprevalence Stratified in Space",
-       subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+  labs(#title = "SARS-CoV-2 Seroprevalence Stratified in Space",
+       #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        y = "Latitude",
        x = "Longitud",
        fill = "Prevalence"#,size = "CV%"
@@ -379,7 +410,8 @@ figure_03_map %>%
                          which_north = "true",
                          pad_x = unit(0.5, "in"),
                          pad_y = unit(0.5, "in"),
-                         style = north_arrow_fancy_orienteering)
+                         style = north_arrow_fancy_orienteering) +
+  theme_bw()
 ggsave("figure/02-seroprev-figure02.png",height = 8,width = 9,dpi = "retina")
 
 
