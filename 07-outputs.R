@@ -156,12 +156,15 @@ figura01 <- outcome_01_adj_tbl %>%
   ))
 
 figura01 %>% 
-  ggplot_prevalence(category = denominator_level,
+  ggplot_prevalence(denominator_level = denominator_level,
+                    numerator = numerator,
                     proportion = prop,
-                    outcome = numerator,
                     proportion_upp = prop_upp,
                     proportion_low = prop_low) +
-  theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
+  # theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    breaks = scales::pretty_breaks(n = 5)) +
   coord_flip() +
   facet_wrap(denominator~.,scales = "free_y",ncol = 3) +
   # facet_grid(denominator~.,scales = "free_y") +
@@ -170,7 +173,8 @@ figura01 %>%
        subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        y = "Prevalence",x = "",
        color = "Case\ndefinition"#,size = "CV%"
-  )
+  ) +
+  theme_bw()
 ggsave("figure/00-seroprev-supp-figure01.png",height = 10,width = 12,dpi = "retina")
 
 # __fig01: edad decenio -----------------------------------------------------------------
@@ -205,11 +209,15 @@ figura02 <- outcome_01_adj_tbl %>%
   ))
 
 figura02 %>% 
-  ggplot_prevalence(category = denominator_level,
-                    outcome = source,
+  ggplot_prevalence(denominator_level = denominator_level,
+                    numerator = source,
                     proportion = dot,
                     proportion_upp = upp,
                     proportion_low = low) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    breaks = scales::pretty_breaks(n = 5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   colorspace::scale_color_discrete_qualitative(rev = TRUE) +
   labs(title = "SARS-CoV-2 Seroprevalence Stratified by Age",
        subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
@@ -264,35 +272,51 @@ figura02 <- outcome_01_adj_tbl %>%
                                       "60+"="adulto_mayor"))
 
 figura02_a <- figura02 %>% 
-  ggplot_prevalence(category = denominator_level,
-                    outcome = source,
+  ggplot_prevalence(denominator_level = denominator_level,
+                    numerator = source,
                     proportion = dot,
                     proportion_upp = upp,
                     proportion_low = low) +
+  # scale_y_continuous(
+  #   # labels = scales::percent_format(accuracy = 1),
+  #   breaks = scales::pretty_breaks(n = 5),limits = ) +
   colorspace::scale_color_discrete_qualitative(rev = TRUE)
   #theme(axis.text.x = element_text(angle = NULL, vjust = NULL, hjust=NULL))
+
+
+# ____ alt 1 --------------------------------------------------------------
+
+
 
 library(cowplot)
 
 inset <- figura02_a +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1,suffix = ""),
+                     breaks = scales::pretty_breaks(n = 5),
+                     # limits = c(0,1)
+                     ) +
+  theme_bw() +
   theme(legend.position = "none",
+        axis.text=element_text(size=7),
         # panel.background = element_rect(fill = "transparent"),
         plot.background = element_rect(fill = "transparent", color = NA)
         ) +
   labs(x="",y="")
 
 main <- figura02_a +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
-                     breaks = scales::pretty_breaks(n = 10),limits = c(0,1)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1,suffix = ""),
+                     breaks = scales::pretty_breaks(n = 10),
+                     limits = c(0,1)) +
   labs(#title = "SARS-CoV-2 Seroprevalence Stratified by Age",
        #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
-       y = "Prevalence",x = "Age (years)",
+       y = "Prevalence (%)",x = "Age (years)",
        color = "Estimate"#,size = "CV%"
   )
 
 done <- ggdraw() +
   draw_plot(main) +
-  draw_plot(inset, x = 0.13, y = .44, 
+  draw_plot(inset, 
+            x = 0.13, y = .44, 
             width = .48, height = .55)
 
 png(filename = "figure/05-seroprev-figure01.png",
@@ -309,6 +333,19 @@ dev.off()
 #           )
 
 
+
+# ____ alt 2 --------------------------------------------------------------
+
+figura02_a +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1,suffix = ""),
+                     breaks = scales::pretty_breaks(n = 10),
+                     limits = c(0,0.35)) +
+  labs(#title = "SARS-CoV-2 Seroprevalence Stratified by Age",
+    #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+    y = "Prevalence (%)",x = "Age (years)",
+    color = "Estimate"#,size = "CV%"
+  )
+ggsave("figure/05-seroprev-figure01-2.png",height = 3.5,width = 4.5,dpi = "retina")
 
 # __fig02: espacial diris -----------------------------------------------------------------
 
