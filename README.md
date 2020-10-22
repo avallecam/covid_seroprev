@@ -41,6 +41,12 @@ seroepidemiological survey”**
 
 <!-- - 05 - script libre para la identificación de problemas a notificar y corregir -->
 
+## Workflow
+
+For a reproducible workflow of the analysis performed in this project go
+to the [serosurvey](https://avallecam.github.io/serosurvey/) R package
+website.
+
 <!-- ## to do list -->
 
 <!-- () _ _ -->
