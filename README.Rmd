@@ -20,7 +20,12 @@ analysis workflow used for the project and manuscript:
 __"Prevalence of SARS-CoV-2 in Lima, Peru: a population-based 
 seroepidemiological survey"__
 
-## project workflow
+## Project Workflow
+
+For a reproducible workflow of the analysis performed in this project 
+go to the [serosurvey](https://avallecam.github.io/serosurvey/) R package website.
+
+### Files:
 
 - `Encuesta ESPI_fisico.xlsx`: XLSForm used to collect data.
 - `01-clean`: import, clean and integration of data sources. recategorize and create variables.
@@ -40,11 +45,6 @@ seroepidemiological survey"__
 <!-- - unix makefile - correr a cada retorno de resultados PM por parte de INS -->
 <!-- - 02 - exportación de resultados a SISCOVID e INS -->
 <!-- - 05 - script libre para la identificación de problemas a notificar y corregir -->
-
-## Workflow
-
-For a reproducible workflow of the analysis performed in this project 
-go to the [serosurvey](https://avallecam.github.io/serosurvey/) R package website.
 
 <!-- ## to do list -->
 
