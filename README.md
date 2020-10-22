@@ -5,6 +5,7 @@
 
 <!-- badges: start -->
 
+[![DOI](https://zenodo.org/badge/301889893.svg)](https://zenodo.org/badge/latestdoi/301889893)
 <!-- badges: end -->
 
 The goal of `covid_seroprev` is to register the data management and
