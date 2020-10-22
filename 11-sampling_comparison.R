@@ -14,8 +14,11 @@ theme_set(theme_bw())
 
 # reunis inei -------------------------------------------------------------
 
-
-rute_reunis <- "../asis_repositorio/denom_r/data-raw/Poblacion Peru 2020 Dpto Prov Dist Final INEI-actualizado.xlsx"
+# source: 
+# https://www.minsa.gob.pe/reunis/index.asp
+# https://www.minsa.gob.pe/reunis/data/poblacion_estimada.asp
+# https://cloud.minsa.gob.pe/s/XJ3NoG3WsxgF6H8
+rute_reunis <- "data-raw/population/Poblacion Peru 2020 Dpto Prov Dist Final INEI-actualizado.xlsx"
 
 data_reunis <- cdcper::read_reunis_edad_quinquenio(file = rute_reunis,
                                                    year = 2020)
@@ -31,7 +34,8 @@ popstr_reference <- data_reunis %>%
 # for 13-epicurve
 popstr_reference %>% 
   group_by(ano) %>% 
-  summarise(across(starts_with("ref_"),sum))
+  summarise(across(starts_with("ref_"),sum)) %>% 
+  write_rds("data/local_population.rds")
 
 # local sutdy -------------------------------------------------------------
 

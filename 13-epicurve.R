@@ -166,12 +166,15 @@ peru_sources <- positivos %>%
       mutate(source = "All causes of Deaths\n(including COVID-19 confirmed)")
   )
 
+# from 11-sampling_comparison
+local_population <- read_rds("data/local_population.rds") %>% pull(ref_sum_value)
+
 peru_sources %>% 
   arrange(desc(source),epi_date) %>% 
   group_by(source) %>% 
   mutate(cumsum=cumsum(n)) %>% 
   # from 11-sampling_comparison
-  mutate(cumpct=cumsum/10742559*100) %>% 
+  mutate(cumpct=cumsum/local_population*100) %>% 
   mutate(epi_week=epiweek(epi_date)) %>% 
   ungroup() %>% 
   select(source,epi_date,epi_week,everything()) %>% 
