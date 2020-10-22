@@ -9,19 +9,19 @@
 
 The goal of `covid_seroprev` is to register the data management and
 statistical analysis workflow used for the project and manuscript:
-**“SARS-CoV-2 seroprevalence in Lima Metropolitan Area, Peru: a
-population-based cross-sectional serological survey”**
+**“Prevalence of SARS-CoV-2 in Lima, Peru: a population-based
+seroepidemiological survey”**
 
 ## project workflow
 
+  - `Encuesta ESPI_fisico.xlsx`: XLSForm used to collect data.
   - `01-clean`: import, clean and integration of data sources.
     recategorize and create variables.
   - `06-prevalence`: estimate prevalence.
   - `07-outputs.R`: create tables and figures.
   - `11-sampling_comparison.R`: contrast census and sample population.
   - `13-epicurve.R`: create epicurve from open data.
-  - `15-distributions.R`: exploratory ecdf.
-  - `Encuesta ESPI_fisico.xlsx`: XLSForm used to collect data.
+    <!-- - `15-distributions.R`: exploratory ecdf. -->
 
 <!-- - 07-retorno_ins - verificar vinculación con base de participantes -->
 
@@ -41,7 +41,6 @@ population-based cross-sectional serological survey”**
 
 <!-- - 05 - script libre para la identificación de problemas a notificar y corregir -->
 
-## to do list
+<!-- ## to do list -->
 
-  - ( ) package: doi it with zenodo-\>JOSS + add batch to github
-  - ( ) metadata: project + instrument doi it in zenodo
+<!-- () _ _ -->
