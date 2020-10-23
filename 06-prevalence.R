@@ -509,8 +509,8 @@ out_one %>%
   geom_vline(aes(xintercept=numeric.p95),
              color="red") +
   scale_x_continuous(breaks = scales::pretty_breaks()) +
-  labs(title = "Posterior distribution of Seroprevalence, Sensitivity amd Specificity",
-       subtitle = "Median and 95% Credible Intervals. From sampling-weighted point estimate.")
+  labs(title = "Posterior distribution of Seroprevalence, Sensitivity and Specificity",
+       subtitle = "Median and 95% Credible Intervals.")
 ggsave("figure/33-seroprev-supp-figure02.png",height = 3,width = 10,dpi = "retina")
   
 # __ apply + extract ----------------------------------------------------------------
