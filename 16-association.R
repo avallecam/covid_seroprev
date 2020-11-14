@@ -6,6 +6,11 @@
 #' write_xlsx("table/____")
 #' ggsave("figure/____")
 #' 
+#' PENDIENTE
+#' - usar quartiles in hacinamiento, ¿ventaja de función avallecam en categorización?
+#' - modelo múltiple adjusted por age + sex
+#' - make tables outputs
+#' - add them to supplementary report
 
 library(tidyverse)
 library(skimr)
@@ -43,7 +48,11 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
             .funs = as.factor) %>% 
   # transformar a numerico (prevalencia cruda)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = list("num"=outcome_to_numeric)) #%>%
+            .funs = list("num"=outcome_to_numeric)) %>%
+  mutate(contacto_covid=fct_relevel(contacto_covid,"no")) %>%
+  mutate(contacto_covid_tipo=fct_relevel(contacto_covid_tipo,"no")) %>% 
+  mutate(diris=fct_relevel(diris,"DIRIS CENTRO"))
+# reordenar contacto_covid, contacto_covid_tipo
 # # extender respuestas por condicicion de riesgo
 # mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
 #           .funs = list("ext"=~riesgo_extend_na(variable = .x,referencia = riesgo))) #%>% 
@@ -54,6 +63,9 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
 uu_clean_data %>% 
   count(ig_clasificacion,ig_clasificacion_num,positividad_peru) %>% 
   avallecam::print_inf()
+
+uu_clean_data %>% count(trabajo_reciente,motivo_no_trabajo, rubro, prof_salud)
+uu_clean_data %>% count(trabajo_reciente,rubro)
 
 # ___________ -------------------------------------------------------------
 
@@ -87,18 +99,65 @@ covariate_set01 <- uu_clean_data %>%
          contacto_covid_tipo,
          prueba_previa,
          prueba_previa_cat,
-         prueba_previa_res
+         prueba_previa_res,
          # etnia_cat,
-         # trabajo_reciente,
+         trabajo_reciente,
+         rubro,
          # atencion,
          # seguro_salud,
   ) %>% 
   colnames()
 
 
+
 # ____________ ------------------------------------------------------------
 
-# SEROPREVALENCIA ---------------------------------------------------------
+
+# DESCRIPTIVO -------------------------------------------------------------
+
+
+
+# __ valores perdidos -----------------------------------------------------
+
+uu_clean_data %>% 
+  naniar::miss_var_summary() %>% 
+  avallecam::print_inf()
+
+
+# __ descripción poblacional -------------------------------------------------
+
+uu_clean_data %>% 
+  select(ig_clasificacion,covariate_set01) %>%
+  # mutate(across(c(#etnia_cat,
+  #   seguro_salud,
+  #   desague,
+  #   agua#,
+  #   #tipo_vivienda
+  # ),
+  # fct_infreq)) %>% 
+  compareGroups::compareGroups(ig_clasificacion~.,
+  # compareGroups::compareGroups(survey_all~.,
+                               # include.miss = T,
+                               data = .,
+                               max.xlev = 30,
+                               chisq.test.perm = TRUE,
+                               byrow = T
+  ) %>%
+  compareGroups::createTable(digits = 1,
+                             show.all = T,
+                             sd.type = 2,
+                             show.p.overall = T,
+                             # show.ratio = T,
+                             show.n = T) #%>%
+  # compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+  # compareGroups::export2xls("table/02-seroprev-supp-table01-a.xls")
+
+
+
+
+# ____________ ------------------------------------------------------------
+
+# SVY DESIGN ---------------------------------------------------------
 
 # tratamiento de stratos con un solo conglomerado
 options(survey.lonely.psu = "certainty")
@@ -122,6 +181,7 @@ design <- uu_clean_data %>%
 
 # ______________ ----------------------------------------------------------
 
+# SVY GLM ---------------------------------------------------------
 
 # models ------------------------------------------------------------------
 
@@ -130,11 +190,11 @@ library(epitidy)
 
 # null model --------------------------------------------------------------
 
-uu_clean_data %>% count(hacinamiento)
 uu_clean_data %>% pull(ig_clasificacion_num) %>% mean()
 
 glm_null <- svyglm(ig_clasificacion_num ~ 1, 
                    design = design,
+                   # family = quasibinomial(link = "log")#,
                    family = poisson(link = "log")#,
                    # na.action = na.exclude
                    )
@@ -162,8 +222,8 @@ glm_null %>% epi_tidymodel_pr()
 # set 01 of denominator-numerator
 simple_models <- expand_grid(
   design=list(design),
-  # denominator=covariate_set01[c(6)],
-  denominator=covariate_set01[-c(1,5)],
+  # denominator=covariate_set01[c(1,5)],
+  denominator=covariate_set01[-c(1)],
   numerator=c("ig_clasificacion_num")
   ) %>%
   # crear simbolos
@@ -174,8 +234,12 @@ simple_models <- expand_grid(
   #purrr::map
   #create symbol, update null model, tidy up the results
   mutate(variable=map(denominator,dplyr::sym),
-         simple_rawm=map(.x = variable, .f = epi_tidymodel_up, reference_model=glm_null),
-         simple_tidy=map(.x = simple_rawm, .f = epi_tidymodel_pr)
+         simple_rawm=map(.x = variable, 
+                         .f = epi_tidymodel_up, 
+                         reference_model = glm_null),
+         simple_tidy=map(.x = simple_rawm, 
+                         .f = epi_tidymodel_pr,
+                         digits = 5)
   ) %>%
   #unnest coefficients
   unnest(cols = c(simple_tidy)) %>%
