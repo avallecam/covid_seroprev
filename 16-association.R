@@ -357,7 +357,7 @@ final_table <- simple_models %>%
   mutate(p.value.m=case_when(
     p.value.m>=0.001 ~ as.character(round(p.value.m,digits=3)),
     p.value.m<0.001 ~ "<0.001"
-  )) 
+  ))
 
 final_table %>% 
   avallecam::print_inf()
@@ -382,6 +382,10 @@ uu_clean_data %>%
 # __ write output ---------------------------------------------------------
 
 final_table %>% 
+  # clean name
+  mutate(clean=str_replace(term,value.s,".")) %>% 
+  select(value.s,contains("term"),contains("clean"),everything()) %>% 
+  select(-term) %>% 
   writexl::write_xlsx("table/04-seroprev-table03.xlsx")
 
 
@@ -395,7 +399,7 @@ multiple_models %>%
   
   mutate(clean=str_replace(term,denominator,".")#,
          # clean=str_c(denominator,clean)
-         ) %>% 
+         ) %>%
   # avallecam::print_inf()
   ggplot(aes(x = pr,y = clean)) +
   geom_point() +
