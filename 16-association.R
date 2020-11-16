@@ -7,10 +7,11 @@
 #' ggsave("figure/____")
 #' 
 #' PENDIENTE
-#' - modelo múltiple adjusted por age + sex
-#' - make tables outputs
-#' - add them to supplementary report
 #' - for ind_hacin: sub-analysis comparing general characteristics of missings with non-missings
+#' - finish figure
+#' 
+#' DETAILS
+#' - % of missing distribution
 
 library(tidyverse)
 library(skimr)
@@ -78,7 +79,7 @@ covariate_set01 <- uu_clean_data %>%
   select(survey_all,
          sexo,
          edad_etapas_de_vida_t,
-         edad_decenios,
+         # edad_decenios,
          # edad_quinquenal,
          diris,
          # pobreza_dico,
@@ -219,7 +220,7 @@ glm_null %>% epi_tidymodel_pr()
 # my_model <- survey::svyglm(ig_clasificacion_num ~ hacinamiento, design)
 # epitidy::epi_tidymodel_pr(my_model)
 
-# more than one simple model ------------------------------------------------------------
+# __ more than one simple model ------------------------------------------------------------
 
 # crear matriz
 # set 01 of denominator-numerator
@@ -254,4 +255,150 @@ simple_models %>%
   avallecam::print_inf()
 
 
+# _ multiple regression ----------------------------------------------------------
 
+# __ define confounder set ---------------
+
+counfunder_set <- c("sexo","edad_etapas_de_vida_t")
+
+glm_adjusted <- 
+  epi_tidymodel_up(reference_model = glm_null,
+                   variable = dplyr::sym(counfunder_set[1])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[2]))
+
+# __ more than one multiple models ------------
+
+multiple_models <- expand_grid(
+  design=list(design),
+  # denominator=covariate_set01[c(1,5)],
+  denominator=covariate_set01[-c(1)],
+  numerator=c("ig_clasificacion_num")
+) %>%
+  # #remove unwanted covariates: adjustment set
+  filter(!magrittr::is_in(denominator,counfunder_set)) %>% 
+  # crear simbolos
+  mutate(
+    denominator=map(denominator,dplyr::sym),
+    numerator=map(numerator,dplyr::sym)
+  ) %>% 
+  #purrr::map
+  #create symbol, update null model, tidy up the results
+  mutate(variable=map(denominator,dplyr::sym),
+         multiple_rawm=map(.x = variable, 
+                         .f = epi_tidymodel_up, 
+                         reference_model = glm_adjusted),
+         multiple_tidy=map(.x = multiple_rawm, 
+                         .f = epi_tidymodel_pr,
+                         digits = 5)
+  ) %>%
+  #unnest coefficients
+  unnest(cols = c(multiple_tidy)) %>%
+  #filter out intercepts
+  filter(term!="(Intercept)") %>% 
+  #remove confounders from estimated coefficients
+  filter(!str_detect(term,counfunder_set[1])) %>% 
+  filter(!str_detect(term,counfunder_set[2]))
+
+multiple_models %>% 
+  select(-(1:5)) %>% 
+  avallecam::print_inf()
+
+
+# _ final table -----------------------------------------------------------
+
+final_table <- simple_models %>%
+  select(-c(1,3:5)) %>% 
+  # select(-variable,-simple_rawm) %>%
+  full_join(multiple_models %>% select(-c(1,3:5)),
+            by = "term",
+            suffix=c(".s",".m")) %>%
+  mutate(across(contains("denominator"),as.character)) %>% 
+  select(-denominator.m) %>% 
+  rename(value.s=denominator.s) %>% 
+  #filter(!is.na(p.value.m)) %>%
+  #add to upper rows to add covariate name and reference category
+  group_by(value.s) %>%
+  nest() %>%
+  mutate(data=map(.x = data,
+                  .f = ~add_row(.data = .x,
+                                term=".ref",
+                                .before = 1)),
+         data=map(.x = data,
+                  .f = ~add_row(.data = .x,
+                                term=".name",
+                                .before = 1))) %>%
+  unnest(cols = c(data)) %>%
+  #retire columns
+  select(-contains("log.pr"),-contains("se.")) %>%
+  # round numeric values
+  mutate_at(.vars = vars(pr.s,conf.low.s,conf.high.s,
+                         pr.m,conf.low.m,conf.high.m),
+            .funs = round, digits=2) %>%
+  # mutate_at(.vars = vars(p.value.s,p.value.m),
+  #           .funs = round, digits=3) %>%
+  #join confidence intervals
+  mutate(ci.s=str_c(conf.low.s," - ",conf.high.s),
+         ci.m=str_c(conf.low.m," - ",conf.high.m)) %>%
+  #remove and reorder columns
+  select(starts_with("value"),term,
+         starts_with("pr"),starts_with("ci"),starts_with("p.val"),
+         -starts_with("conf")) %>%
+  select(starts_with("value"),term,ends_with(".s"),ends_with(".m")) %>%
+  # select(-value.m) %>%
+  #add ref to estimates
+  mutate(pr.s=if_else(str_detect(term,".ref"),"Ref.",as.character(pr.s)),
+         pr.m=if_else(str_detect(term,".ref"),"Ref.",as.character(pr.m))) %>%
+  ungroup() %>% 
+  # transform p value columns
+  mutate(p.value.s=case_when(
+    p.value.s>=0.001 ~ as.character(round(p.value.s,digits=3)),
+    p.value.s<0.001 ~ "<0.001"
+  )) %>% 
+  mutate(p.value.m=case_when(
+    p.value.m>=0.001 ~ as.character(round(p.value.m,digits=3)),
+    p.value.m<0.001 ~ "<0.001"
+  )) 
+
+final_table %>% 
+  avallecam::print_inf()
+
+
+# ______________ ----------------------------------------------------------
+
+
+# OUTPUTS -----------------------------------------------------------------
+
+
+# table -------------------------------------------------------------------
+
+
+# __ write missings -------------------------------------------------------
+
+uu_clean_data %>% 
+  select(all_of(covariate_set01)) %>% 
+  naniar::miss_var_summary() %>% 
+  writexl::write_xlsx("table/04-seroprev-supp-table10.xlsx")
+
+# __ write output ---------------------------------------------------------
+
+final_table %>% 
+  writexl::write_xlsx("table/04-seroprev-table03.xlsx")
+
+
+# figure ------------------------------------------------------------------
+
+multiple_models %>% 
+  select(-c(1,3:5)) %>% 
+  mutate(across(contains("denominator"),as.character)) %>% 
+  
+  filter(magrittr::is_in(denominator,covariate_set01[c(4:7,9:11)])) %>% 
+  
+  mutate(clean=str_replace(term,denominator,".")#,
+         # clean=str_c(denominator,clean)
+         ) %>% 
+  # avallecam::print_inf()
+  ggplot(aes(x = pr,y = clean)) +
+  geom_point() +
+  geom_errorbarh(aes(xmax=conf.high,xmin=conf.low),
+                position = position_dodge(width = 0.5)) +
+  facet_grid(denominator~.,scales = "free")
