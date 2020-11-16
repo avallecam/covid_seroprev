@@ -2,6 +2,7 @@
 #' OBJETIVES:
 #' - create prevalence table output with survey design
 #' - correct seroprevalence due to missclassification
+#' 
 #' write_rds("data/outcome_01_adj_tbl.rds")
 #' write_xlsx("table/03-seroprev-supp-table01.xlsx")
 #' write_xlsx("table/03-seroprev-supp-table02.xlsx")
