@@ -64,8 +64,11 @@ uu_clean_data %>%
   count(ig_clasificacion,ig_clasificacion_num,positividad_peru) %>% 
   avallecam::print_inf()
 
-uu_clean_data %>% count(trabajo_reciente,motivo_no_trabajo, rubro, prof_salud)
-uu_clean_data %>% count(trabajo_reciente,rubro)
+# uu_clean_data %>% count(trabajo_reciente,motivo_no_trabajo, rubro, prof_salud)
+# uu_clean_data %>% count(trabajo_reciente,rubro)
+
+# uu_clean_data %>% skim(ind_hacin)
+# uu_clean_data %>% count(ind_hacin_cut2)
 
 # ___________ -------------------------------------------------------------
 
@@ -81,7 +84,7 @@ covariate_set01 <- uu_clean_data %>%
          # pobreza_dico,
          ind_hacin,
          # ind_hacin_qrt,
-         ind_hacin_cut,
+         ind_hacin_cut2,
          hacinamiento,
          # nro_dormitorios_cat,
          nm_prov,
@@ -127,7 +130,7 @@ uu_clean_data %>%
 # __ descripción poblacional -------------------------------------------------
 
 uu_clean_data %>% 
-  select(ig_clasificacion,covariate_set01) %>%
+  select(ig_clasificacion,all_of(covariate_set01)) %>%
   # mutate(across(c(#etnia_cat,
   #   seguro_salud,
   #   desague,
@@ -136,9 +139,10 @@ uu_clean_data %>%
   # ),
   # fct_infreq)) %>% 
   compareGroups::compareGroups(ig_clasificacion~.,
-  # compareGroups::compareGroups(survey_all~.,
+                               # compareGroups::compareGroups(survey_all~.,
                                # include.miss = T,
                                data = .,
+                               method = c(ind_hacin=2),
                                max.xlev = 30,
                                chisq.test.perm = TRUE,
                                byrow = T
@@ -149,8 +153,8 @@ uu_clean_data %>%
                              show.p.overall = T,
                              # show.ratio = T,
                              show.n = T) #%>%
-  # compareGroups::export2xls("table/01-compareGroups-output-01.xls")
-  # compareGroups::export2xls("table/02-seroprev-supp-table01-a.xls")
+# compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+# compareGroups::export2xls("table/02-seroprev-supp-table01-a.xls")
 
 
 
@@ -212,8 +216,6 @@ glm_null %>% epi_tidymodel_pr()
 # # tidy(my_model)
 # epitidy::epi_tidymodel_pr(my_model)
 # my_model <- survey::svyglm(ig_clasificacion_num ~ hacinamiento, design)
-# epitidy::epi_tidymodel_pr(my_model)
-# my_model <- survey::svyglm(ig_clasificacion_num ~ ind_hacin_cut, design)
 # epitidy::epi_tidymodel_pr(my_model)
 
 # more than one simple model ------------------------------------------------------------

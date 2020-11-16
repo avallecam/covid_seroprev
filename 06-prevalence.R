@@ -178,7 +178,7 @@ uu_clean_data %>%
          electricidad,
          # nro_convivientes_cut,
          # nro_dormitorios_cut,
-         ind_hacin_cut,
+         ind_hacin_cut2,
          hacinamiento,
          # sintomas_cualquier_momento_cat,
          # riesgo,

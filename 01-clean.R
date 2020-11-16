@@ -13,6 +13,7 @@
 library(tidyverse)
 library(avallecam)
 library(magrittr)
+library(sf)
 
 # input -------------------------------------------------------------------
 
@@ -1071,6 +1072,7 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   cdcper::cdc_cut_integer(variable = nro_convivientes) %>% 
   cdcper::cdc_cut_integer(variable = nro_dormitorios,number_cuts = 3) %>% 
   cdcper::cdc_cut_integer(variable = ind_hacin) %>% 
+  mutate(ind_hacin_cut2=Hmisc::cut2(ind_hacin,g = 4)) %>% 
   
   #' [POBREZA MEF]
   
