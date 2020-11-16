@@ -28,7 +28,8 @@ website.
   - `07-outputs.R`: create tables and figures.
   - `11-sampling_comparison.R`: contrast census and sample population.
   - `13-epicurve.R`: create epicurve from open data.
-    <!-- - `15-distributions.R`: exploratory ecdf. -->
+  - `15-distributions.R`: exploratory ecdf for overcrowding.
+  - `16-association.R`: calculate association measurements.
 
 <!-- - 07-retorno_ins - verificar vinculación con base de participantes -->
 
