@@ -7,10 +7,10 @@
 #' ggsave("figure/____")
 #' 
 #' PENDIENTE
-#' - usar quartiles in hacinamiento, ¿ventaja de función avallecam en categorización?
 #' - modelo múltiple adjusted por age + sex
 #' - make tables outputs
 #' - add them to supplementary report
+#' - for ind_hacin: sub-analysis comparing general characteristics of missings with non-missings
 
 library(tidyverse)
 library(skimr)
@@ -123,6 +123,7 @@ covariate_set01 <- uu_clean_data %>%
 # __ valores perdidos -----------------------------------------------------
 
 uu_clean_data %>% 
+  select(all_of(covariate_set01)) %>% 
   naniar::miss_var_summary() %>% 
   avallecam::print_inf()
 
