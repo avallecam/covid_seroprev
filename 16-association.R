@@ -154,8 +154,8 @@ uu_clean_data %>%
                              sd.type = 2,
                              show.p.overall = T,
                              # show.ratio = T,
-                             show.n = T) #%>%
-# compareGroups::export2xls("table/01-compareGroups-output-01.xls")
+                             show.n = T) %>%
+  compareGroups::export2xls("table/04-seroprev-supp-table11.xls")
 # compareGroups::export2xls("table/02-seroprev-supp-table01-a.xls")
 
 
