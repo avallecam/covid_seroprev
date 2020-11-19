@@ -21,6 +21,9 @@ theme_set(theme_bw())
 min_analysis_date <- ymd(20200301)
 max_analysis_date <- ymd(20200801)
 
+# ______________ ----------------------------------------------------------
+
+
 # covid19viz R package ----------------------------------------------------
 
 # _import intervention data ------------------------------------------------
@@ -62,6 +65,8 @@ interventions
 
 interventions %>% 
   writexl::write_xlsx("table/02-seroprev-supp-table05.xlsx")
+
+# ______________ ----------------------------------------------------------
 
 # mobility data -----------------------------------------------------------
 
@@ -121,6 +126,9 @@ mobility_lima %>%
        fill = "Interventions",
        color = "Region")
 ggsave("figure/03-seroprev-figure04.png",dpi = "retina",height = 3.5,width = 8)
+
+# ______________ ----------------------------------------------------------
+
 
 # covidPeru R package -----------------------------------------------------
 
