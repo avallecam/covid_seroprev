@@ -22,6 +22,9 @@ rute_reunis <- "data-raw/population/Poblacion Peru 2020 Dpto Prov Dist Final INE
 
 data_reunis <- cdcper::read_reunis_edad_quinquenio(file = rute_reunis,
                                                    year = 2020)
+etapas_reunis <- cdcper::read_reunis_edad(file = rute_reunis,
+                                          year = 2020)
+
 popstr_reference <- data_reunis %>% 
   filter(provincia=="LIMA"|provincia=="CALLAO") %>% 
   group_by(ano,sex,age) %>% 
@@ -36,6 +39,13 @@ popstr_reference %>%
   group_by(ano) %>% 
   summarise(across(starts_with("ref_"),sum)) %>% 
   write_rds("data/local_population.rds")
+
+etapas_reunis %>% 
+  filter(provincia=="LIMA"|provincia=="CALLAO") %>% 
+  group_by(ano,age) %>% 
+  summarise(ref_sum_value=sum(value)) %>% 
+  ungroup() %>% 
+  write_rds("data/local_population_age.rds")
 
 # local sutdy -------------------------------------------------------------
 
