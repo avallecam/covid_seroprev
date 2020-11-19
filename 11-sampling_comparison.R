@@ -95,6 +95,20 @@ data_to_pyramid <- popstr_reference %>%
 data_to_pyramid %>% 
   avallecam::print_inf()
 
+# statistical test --------------------------------------------------------
+
+data_to_pyramid %>% 
+  # count(sex)
+  # filter(sex=="m") %>% 
+  # filter(sex=="h") %>% 
+  select(sex,ref_sum_value,loc_sum_value) %>% 
+  group_by(sex) %>% 
+  nest() %>% 
+  mutate(data=map(.x = data,.f = as.matrix)) %>% 
+  mutate(data=map(.x = data,.f = chisq.test)) %>% 
+  mutate(result=map(.x = data,.f = broom::tidy)) %>% 
+  unnest(result)
+
 # pyramid plot ------------------------------------------------------------
 
 library(ggpol)
