@@ -69,7 +69,7 @@ uu_clean_data %>%
 # uu_clean_data %>% count(trabajo_reciente,rubro)
 
 # uu_clean_data %>% skim(ind_hacin)
-# uu_clean_data %>% count(ind_hacin_cut2)
+# uu_clean_data %>% count(sintomas_cualquier_momento_cat_fecha_14d_v1)
 
 # ___________ -------------------------------------------------------------
 
@@ -90,7 +90,7 @@ covariate_set01 <- uu_clean_data %>%
          # nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,
-         # sintomas_cualquier_momento_cat_fecha_14d_v1,
+         sintomas_cualquier_momento_cat_fecha_14d_v1,
          # sintomas_cualquier_momento_cat_fecha_rangos,
          # riesgo,
          # ends_with("_ext"),
@@ -388,6 +388,12 @@ final_table %>%
   select(-term) %>% 
   writexl::write_xlsx("table/04-seroprev-table03.xlsx")
 
+
+# __ all positives -----------------------------------------------------------
+
+uu_clean_data %>% count(positividad_peru_num,edad_etapas_de_vida_t)
+my_model <- survey::svyglm(positividad_peru_num ~ edad_etapas_de_vida_t, design)
+epitidy::epi_tidymodel_pr(my_model)
 
 # figure ------------------------------------------------------------------
 
