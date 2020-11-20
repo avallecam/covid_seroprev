@@ -52,7 +52,8 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
             .funs = list("num"=outcome_to_numeric)) %>%
   mutate(contacto_covid=fct_relevel(contacto_covid,"no")) %>%
   mutate(contacto_covid_tipo=fct_relevel(contacto_covid_tipo,"no")) %>% 
-  mutate(diris=fct_relevel(diris,"DIRIS CENTRO"))
+  mutate(diris=fct_relevel(diris,"DIRIS CENTRO")) %>% 
+  mutate(nm_prov=fct_relevel(nm_prov,"lima"))
 # reordenar contacto_covid, contacto_covid_tipo
 # # extender respuestas por condicicion de riesgo
 # mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
