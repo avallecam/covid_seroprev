@@ -7,11 +7,11 @@
 #' ggsave("figure/03-seroprev-figure03.png")
 #' 
 
+library(tidyverse)
 library(covidPeru)
 library(readr)
 library(covid19viz)
 library(cdcper)
-library(tidyverse)
 library(lubridate)
 theme_set(theme_bw())
 
@@ -19,7 +19,7 @@ theme_set(theme_bw())
 # analysis time limits --------------------------------------------------------------
 
 min_analysis_date <- ymd(20200301)
-max_analysis_date <- ymd(20200801)
+max_analysis_date <- ymd(20201101)
 
 # ______________ ----------------------------------------------------------
 
@@ -60,7 +60,8 @@ interventions <- tibble(
       mutate(date_max=if_else(date_max==max(date_max),
                               max_analysis_date,
                               date_max))
-  )
+  ) %>% 
+  filter(!is.na(intervention))
 interventions
 
 interventions %>% 
@@ -140,80 +141,190 @@ fallecidos <- da_fallecidos()
 sinadef <- da_sinadef() %>% 
   rename(PROVINCIA=`PROVINCIA DOMICILIO`)
 
+positivos_age <- positivos %>% 
+  as_tibble() %>% 
+  cdcper::cdc_edades_peru(variable_edad = EDAD) %>% 
+  select(fecha,year,semana,DEPARTAMENTO,PROVINCIA,EDAD,
+         edad_etapas_de_vida_c)
+
+fallecidos_age <- fallecidos %>% 
+  as_tibble() %>% 
+  rename(EDAD=EDAD_DECLARADA) %>% 
+  # glimpse()
+  cdcper::cdc_edades_peru(variable_edad = EDAD) %>% 
+  select(fecha,year,semana,DEPARTAMENTO,PROVINCIA,EDAD,
+         edad_etapas_de_vida_c)
+
 # _count by epiweek + unite --------------------------------------------------------
 
-summarize_epiweek <- function(data,source) {
+
+# from 11-sampling_comparison
+local_population <- read_rds("data/local_population_age.rds") %>% 
+  rename(edad=age) %>% 
+  mutate(edad=as.factor(edad)) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"_","-")) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"a","")) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"-mas","+")) %>% 
+  select(-ano)
+
+summarize_epiweek <- function(data,source,variable) {
   data %>% 
     filter(PROVINCIA=="LIMA"|PROVINCIA=="CALLAO") %>% 
     filter(fecha > min_analysis_date) %>% 
     filter(fecha < max_analysis_date) %>% 
     cdcper::cdc_yearweek_to_date(year_integer = year,week_integer = semana) %>% 
-    count(epi_date) %>% 
+    count(epi_date,{{variable}}) %>% 
     mutate(source={{source}})
 }
 
-peru_sources <- positivos %>% 
-  summarize_epiweek(source = "COVID-19 Confirmed Cases") %>% 
-  union_all(
-    # fallecidos %>% 
-    #   summarize_epiweek(source = "Confirmed Deaths")
-    fallecidos %>%
-      summarize_epiweek(source = "Deaths") %>%
-      rename(Deaths=n) %>%
-      select(-source) %>%
-      full_join(
-          sinadef %>%
-            summarize_epiweek(source = "Sinadef") %>%
-            rename(Sinadef=n) %>%
-            select(-source)
-      ) %>%
-      rowwise(epi_date) %>%
-      mutate(n = sum(c_across(Deaths:Sinadef),na.rm = T)) %>%
-      ungroup() %>%
-      select(-Deaths,-Sinadef) %>%
-      mutate(source = "All causes of Deaths\n(including COVID-19 confirmed)")
-  )
-
-# from 11-sampling_comparison
-local_population <- read_rds("data/local_population.rds") %>% pull(ref_sum_value)
-
-peru_sources %>% 
-  arrange(desc(source),epi_date) %>% 
-  group_by(source) %>% 
-  mutate(cumsum=cumsum(n)) %>% 
-  # from 11-sampling_comparison
-  mutate(cumpct=cumsum/local_population*100) %>% 
-  mutate(epi_week=epiweek(epi_date)) %>% 
+peru_sources_age <- positivos_age %>% 
+  summarize_epiweek(variable = edad_etapas_de_vida_c,
+                    source = "COVID-19 Cases") %>% 
+  rename(edad=edad_etapas_de_vida_c) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"_","-")) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"a","")) %>% 
+  mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"-mas","+")) %>% 
+  select(-source) %>% 
+  rename(cases=n) %>% 
+  # mutate(source=fct_relabel(.f = edad,
+  #                           .fun = str_replace,
+  #                           "(.+)",
+  #                           "COVID-19 Cases [\\1]")) %>% 
+  # select(-edad) %>% 
+  full_join(
+    fallecidos_age %>% 
+      summarize_epiweek(variable = edad_etapas_de_vida_c,
+                        source = "COVID-19 Deaths") %>% 
+      rename(edad=edad_etapas_de_vida_c) %>% 
+      mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"_","-")) %>% 
+      mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"a","")) %>% 
+      mutate(edad=fct_relabel(.f = edad,.fun = str_replace,"-mas","+")) %>% 
+      select(-source) %>% 
+      rename(deaths=n) 
+      # mutate(source=fct_relabel(.f = edad,
+      #                           .fun = str_replace,
+      #                           "(.+)",
+      #                           "COVID-19 Deaths [\\1]"))
+  ) %>% 
+  # union_all(
+  #   # fallecidos %>% 
+  #   #   summarize_epiweek(source = "Confirmed Deaths")
+  #   fallecidos %>%
+  #     summarize_epiweek(source = "Deaths") %>%
+  #     rename(Deaths=n) %>%
+  #     select(-source) %>%
+  #     full_join(
+  #         sinadef %>%
+  #           summarize_epiweek(source = "Sinadef") %>%
+  #           rename(Sinadef=n) %>%
+  #           select(-source)
+  #     ) %>%
+  #     rowwise(epi_date) %>%
+  #     mutate(n = sum(c_across(Deaths:Sinadef),na.rm = T)) %>%
+  #     ungroup() %>%
+  #     select(-Deaths,-Sinadef) %>%
+  #     mutate(source = "All causes of Deaths\n(including COVID-19)")
+  # )
+  mutate(deaths=replace_na(deaths,0)) %>% 
+  pivot_longer(cols = c(cases,deaths), 
+               names_to = "source", 
+               values_to = "number") %>% 
+  left_join(local_population) %>% 
+  filter(!is.na(edad)) %>% 
+  group_by(source,edad) %>% 
+  mutate(cumsum=cumsum(number)) %>%
+  mutate(ratio_100m=(number/ref_sum_value)*100000) %>% 
+  mutate(cumsum_100m=(cumsum/ref_sum_value)*100000) %>% 
   ungroup() %>% 
-  select(source,epi_date,epi_week,everything()) %>% 
-  # avallecam::print_inf()
-  writexl::write_xlsx("table/02-seroprev-supp-table06.xlsx")
-  
+  mutate(epi_week=epiweek(epi_date)) %>% 
+  select(epi_date,epi_week,everything()) #%>% 
+  # mutate(edad=fct_explicit_na(edad))
 
-# create plot -------------------------------------------------------------
+# _________ ---------------------------------------------------------------
+
+
+# OUTPUT ------------------------------------------------------------------
+
+
+# __ table output ---------------------------------------------------------
+
+
+peru_sources_age %>% 
+  select(-ref_sum_value) %>% 
+  # completely tidy
+  pivot_longer(cols = c(number:cumsum_100m), 
+               names_to = "measurement", 
+               values_to = "value") %>% 
+  # mix
+  mutate(type=case_when(
+    str_detect(measurement,"100m")~"ratio_100m",
+    TRUE~"not"
+  )) %>% 
+  mutate(measurement=case_when(
+    str_detect(measurement,"ratio")~"number",
+    str_detect(measurement,"cumsum")~"cumsum",
+    TRUE ~ measurement
+  )) %>% 
+  # mutate(mix=str_c(edad,"-",measurement)) %>% 
+  # select(-edad,-measurement) %>% 
+  mutate(mix=str_c(edad,"-",type)) %>% 
+  select(-edad,-type) %>% 
+  pivot_wider(id_cols = -mix, 
+              names_from = mix, 
+              values_from = value) %>% 
+  select(epi_date:`0-11-ratio_100m`,
+         `12-17-not`,`12-17-ratio_100m`,
+         everything()) %>% 
+  mutate(across(.cols = contains("ratio_100"),.fns = round,digits=2)) %>% 
+  mutate(across(.cols = contains("ratio_100"),.fns = as.character)) %>% 
+  arrange(source,epi_date) %>%
+  select(source,everything()) %>% 
+  # avallecam::print_inf()
+  # view()
+  writexl::write_xlsx("table/02-seroprev-supp-table06.xlsx")
+
+peru_sources_age_long <- peru_sources_age %>% 
+  select(-(number:cumsum)) %>% 
+  pivot_longer(cols = c(ratio_100m,cumsum_100m), 
+               names_to = "key", 
+               values_to = "value") %>% 
+  mutate(key=fct_relevel(key,"ratio_100m"))
+
+# __ create plot -------------------------------------------------------------
 
 ggplot() +
   geom_rect(data = interventions,
             aes(xmin = date_min, xmax = date_max, 
                 ymin = 0, ymax = Inf, 
                 fill =intervention_label),
-            alpha=0.4) +
+            alpha=0.3) +
   geom_vline(data = interventions %>% 
                filter(intervention=="seroprev"),
              aes(xintercept = date_min), lty=2) +
   geom_vline(data = interventions %>% 
                filter(intervention=="seroprev"),
              aes(xintercept = date_max), lty=2) +
-  geom_line(data = peru_sources %>% 
-              mutate(source=fct_relevel(source,"COVID-19 Confirmed Cases")),
-            aes(x = epi_date,y = n, color= source)) +
+  geom_line(data = peru_sources_age_long %>% 
+              mutate(key=fct_recode(
+                key,"Incidence"="ratio_100m",
+                "Cummulative"="cumsum_100m"
+              )) %>% 
+              mutate(source=case_when(
+                source=="cases"~"COVID-19 Cases",
+                source=="deaths"~"COVID-19 Deaths"
+                )),
+            aes(x = epi_date,y = value, color= edad),lwd=1.25) +
+            # aes(x = epi_date,y = ratio_100m, color= edad),lwd=1.25) +
   colorspace::scale_color_discrete_qualitative() +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  facet_wrap(~source+key,scales = "free") +
   # scale_y_log10() +
   labs(title = "Government interventions and Surveillance data",
-       subtitle = "Reports between March and August in Lima Metropolitan Area, Peru 2020",
+       subtitle = "Offitial Reports between March and October in Lima Metropolitan Area*, Peru 2020",
+       caption = "* Province of Lima and Callao", 
        x = "Epidemiological week",
-       y = "Number of events",
+       y = "Number of events per 100K hab.",
        fill = "Interventions",
-       color = "Surveillance")
+       color = "Age groups")
 
-ggsave("figure/03-seroprev-figure03.png",dpi = "retina",height = 3.5,width = 6)
+ggsave("figure/03-seroprev-figure03.png",dpi = "retina",height = 5,width = 9)
