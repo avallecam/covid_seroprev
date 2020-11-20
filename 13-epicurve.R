@@ -306,7 +306,7 @@ ggplot() +
              aes(xintercept = date_max), lty=2) +
   geom_line(data = peru_sources_age_long %>% 
               mutate(key=fct_recode(
-                key,"Incidence"="ratio_100m",
+                key,"Incident"="ratio_100m",
                 "Cummulative"="cumsum_100m"
               )) %>% 
               mutate(source=case_when(
