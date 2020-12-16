@@ -44,6 +44,22 @@ diccionario_conglomerado <- read_rds("data/inei-diccionario_conglomerado.rds") %
 diccionario_conglomerado %>% 
   filter(distrito=="ANCON")
 
+# _ ESTRATOS --------------------------------------------------------------
+
+file_name_ponderaciones <- "data-raw/expansion/FACTOR EXPANSION COVID19 AJUSTADO-enviado-14-7-20.xlsx"
+
+# readxl::excel_sheets(file_name_ponderaciones)
+
+conglomerado_nse <- 
+  readxl::read_excel(file_name_ponderaciones,sheet = "Sheet2") %>% 
+  janitor::clean_names() %>% 
+  rename(conglomerado=cong,
+         nse_estrato=estrato) %>% 
+  mutate(nse_estrato=as.factor(nse_estrato))
+
+conglomerado_nse %>% count(nse_estrato)
+
+
 # _ PONDERACIONES -----------------------------------------------------------
 
 file_name_ponderaciones <- avallecam::read_lastfile(path = "data-raw/expansion/",pattern = ".xlsx")
@@ -51,7 +67,10 @@ file_name_ponderaciones <- avallecam::read_lastfile(path = "data-raw/expansion/"
 diccionario_ponderaciones <- 
   readxl::read_excel(file_name_ponderaciones) %>% 
   janitor::clean_names() %>% 
-  select(ubigeo,conglomerado=conglomeradofinal,mviv:factorfinal)
+  select(ubigeo,conglomerado=conglomeradofinal,mviv:factorfinal) %>% 
+  left_join(conglomerado_nse)
+
+# diccionario_ponderaciones %>% naniar::miss_var_summary()
 
 # diccionario_ponderaciones %>% 
 #   filter(conglomerado=="_______")
