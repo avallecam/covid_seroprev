@@ -80,6 +80,7 @@ figura01 <- outcome_01_adj_tbl %>%
                                 "Biological Sex"="sexo",
                                 "Age (years)"="edad_etapas_de_vida_t",
                                 "Overcrowding"="hacinamiento",
+                                "Socioeconomic Status"="nse_estrato",
                                 "Symptoms"="sintomas_cualquier_momento_cat",
                                 "Contact"="contacto_covid",
                                 "Contact Type"="contacto_covid_tipo",
@@ -129,7 +130,17 @@ figura01 <- outcome_01_adj_tbl %>%
                                       "Male"="masculino",
                                       "No"="no",
                                       "Yes"="si",
+                                      "High"="1",
+                                      "Middle-High"="2",
+                                      "Middle"="3",
+                                      "Middle-Low"="4",
+                                      "Low"="5",
                                       "Unknown"="desconocido",
+                                      # "No"="no_",
+                                      "with PCR Test"="si_pcr",
+                                      "with Antibody\nRapid Test"="si_pr",
+                                      "Negative\nresult"="si_negativo",
+                                      "Positive\nresult"="si_positivo",
                                       "Asymptomatic"="sinto_asint",
                                       "Oligosymptomatic"="sinto_oligo",
                                       "Symptomatic"="sinto_covid",
@@ -171,6 +182,7 @@ figura01 %>%
   colorspace::scale_color_discrete_qualitative() +
   labs(title = "SARS-CoV-2 Prevalence by case definitions across covariates",
        subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+       # caption = "* SES: Socioeconomic Status",
        y = "Prevalence",x = "",
        color = "Case\ndefinition"#,size = "CV%"
   ) +

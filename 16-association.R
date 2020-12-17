@@ -53,7 +53,12 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
   mutate(contacto_covid=fct_relevel(contacto_covid,"no")) %>%
   mutate(contacto_covid_tipo=fct_relevel(contacto_covid_tipo,"no")) %>% 
   mutate(diris=fct_relevel(diris,"DIRIS CENTRO")) %>% 
-  mutate(nm_prov=fct_relevel(nm_prov,"lima"))
+  mutate(nm_prov=fct_relevel(nm_prov,"lima")) %>% 
+  mutate(rubro=case_when(
+    is.na(rubro) & trabajo_reciente=="no" ~"no",
+    TRUE~rubro
+  )) %>% 
+  mutate(rubro=fct_relevel(rubro,"no")) #%>%
 # reordenar contacto_covid, contacto_covid_tipo
 # # extender respuestas por condicicion de riesgo
 # mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
@@ -76,12 +81,13 @@ uu_clean_data %>%
 
 # SELECT COVARIATES -------------------------------------------------------
 
-covariate_set01 <- uu_clean_data %>% 
+covariate_set01 <- uu_clean_data %>% #NEWMOD
   select(survey_all,
          sexo,
          edad_etapas_de_vida_t,
          # edad_decenios,
          # edad_quinquenal,
+         nse_estrato,
          diris,
          # pobreza_dico,
          ind_hacin,
@@ -260,12 +266,13 @@ simple_models %>%
 
 # __ define confounder set ---------------
 
-counfunder_set <- c("sexo","edad_etapas_de_vida_t")
+counfunder_set <- c("sexo","edad_etapas_de_vida_t","nse_estrato") #NEWMOD
 
 glm_adjusted <- 
   epi_tidymodel_up(reference_model = glm_null,
                    variable = dplyr::sym(counfunder_set[1])) %>% 
-  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[2]))
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[2])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[3])) #NEWMOD
 
 # __ more than one multiple models ------------
 
@@ -298,7 +305,8 @@ multiple_models <- expand_grid(
   filter(term!="(Intercept)") %>% 
   #remove confounders from estimated coefficients
   filter(!str_detect(term,counfunder_set[1])) %>% 
-  filter(!str_detect(term,counfunder_set[2]))
+  filter(!str_detect(term,counfunder_set[2])) %>% 
+  filter(!str_detect(term,counfunder_set[3])) #NEWMOD
 
 multiple_models %>% 
   select(-(1:5)) %>% 
