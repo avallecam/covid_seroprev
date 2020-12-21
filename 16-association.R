@@ -262,17 +262,68 @@ simple_models %>%
   avallecam::print_inf()
 
 
-# _ multiple regression ----------------------------------------------------------
+
+# _ 01 multiple regression ----------------------------------------------------------
 
 # __ define confounder set ---------------
 
-counfunder_set <- c("sexo","edad_etapas_de_vida_t","nse_estrato") #NEWMOD
+counfunder_set01 <- c("sexo","edad_etapas_de_vida_t","nm_prov","nse_estrato") #NEWMOD
+
+glm_adjusted01 <- 
+  epi_tidymodel_up(reference_model = glm_null,
+                   variable = dplyr::sym(counfunder_set01[1])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set01[2])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set01[3])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set01[4])) #NEWMOD
+
+glm_adjusted01 %>% epi_tidymodel_pr()
+
+# _ final table -----------------------------------------------------------
+
+final_table01 <- 
+  glm_adjusted01 %>%
+  epi_tidymodel_pr() %>% 
+  # round numeric values
+  mutate_at(.vars = vars(pr,conf.low,conf.high),
+            .funs = round, digits=2) %>%
+  # mutate_at(.vars = vars(p.value.s,p.value.m),
+  #           .funs = round, digits=3) %>%
+  #join confidence intervals
+  mutate(ci=str_c(conf.low," - ",conf.high)) %>%
+  #remove and reorder columns
+  select(starts_with("value"),term,
+         starts_with("pr"),starts_with("ci"),starts_with("p.val"),
+         -starts_with("conf")) %>%
+  # select(starts_with("value"),term,ends_with(".s"),ends_with(".m")) %>%
+  # select(-value.m) %>%
+  #add ref to estimates
+  # mutate(pr.s=if_else(str_detect(term,".ref"),"Ref.",as.character(pr.s)),
+         # pr.m=if_else(str_detect(term,".ref"),"Ref.",as.character(pr.m))) %>%
+  # ungroup() %>% 
+  # transform p value columns
+  mutate(p.value=case_when(
+    p.value>=0.001 ~ as.character(round(p.value,digits=3)),
+    p.value<0.001 ~ "<0.001"
+  ))
+
+final_table01 %>% 
+  avallecam::print_inf()
+
+
+
+
+# _ 02 multiple regression ----------------------------------------------------------
+
+# __ define confounder set ---------------
+
+counfunder_set <- c("sexo","edad_etapas_de_vida_t","diris","nse_estrato") #NEWMOD
 
 glm_adjusted <- 
   epi_tidymodel_up(reference_model = glm_null,
                    variable = dplyr::sym(counfunder_set[1])) %>% 
   epi_tidymodel_up(variable = dplyr::sym(counfunder_set[2])) %>% 
-  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[3])) #NEWMOD
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[3])) %>% 
+  epi_tidymodel_up(variable = dplyr::sym(counfunder_set[4])) #NEWMOD
 
 # __ more than one multiple models ------------
 
@@ -306,7 +357,8 @@ multiple_models <- expand_grid(
   #remove confounders from estimated coefficients
   filter(!str_detect(term,counfunder_set[1])) %>% 
   filter(!str_detect(term,counfunder_set[2])) %>% 
-  filter(!str_detect(term,counfunder_set[3])) #NEWMOD
+  filter(!str_detect(term,counfunder_set[3])) %>% 
+  filter(!str_detect(term,counfunder_set[4])) #NEWMOD
 
 multiple_models %>% 
   select(-(1:5)) %>% 
@@ -389,6 +441,9 @@ uu_clean_data %>%
   writexl::write_xlsx("table/04-seroprev-supp-table10.xlsx")
 
 # __ write output ---------------------------------------------------------
+
+final_table01 %>% 
+  writexl::write_xlsx("table/04-seroprev-table03pre.xlsx")
 
 final_table %>% 
   # clean name
