@@ -268,7 +268,7 @@ simple_models %>%
 
 # __ define confounder set ---------------
 
-counfunder_set01 <- c("sexo","edad_etapas_de_vida_t","nm_prov","nse_estrato") #NEWMOD #nse_estrato_cat
+counfunder_set01 <- c("sexo","edad_etapas_de_vida_t","nm_prov","nse_estrato_cat") #NEWMOD #nse_estrato_cat
 
 glm_adjusted01 <- 
   epi_tidymodel_up(reference_model = glm_null,
@@ -317,7 +317,7 @@ final_table01 %>%
 
 # __ define confounder set ---------------
 
-counfunder_set <- c("sexo","edad_etapas_de_vida_t","diris","nse_estrato") #NEWMOD nse_estrato_cat
+counfunder_set <- c("sexo","edad_etapas_de_vida_t","diris","nse_estrato_cat") #NEWMOD nse_estrato_cat
 
 glm_adjusted <- 
   epi_tidymodel_up(reference_model = glm_null,
