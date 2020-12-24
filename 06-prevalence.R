@@ -245,7 +245,7 @@ covariate_set01 <- uu_clean_data %>%
          nse_estrato,
          nse_estrato_cat,
          hacinamiento,
-         # ind_hacin_cut2,
+         ind_hacin_cut2,
          # nro_dormitorios_cat,
          nm_prov,
          sintomas_cualquier_momento_cat,

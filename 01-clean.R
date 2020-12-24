@@ -1088,7 +1088,8 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   # mutate(ind_hacin=if_else(condition = ind_hacin==Inf,
   #                          true = NA_real_,
   #                          false = ind_hacin)) %>%
-  mutate(hacinamiento=case_when(ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
+  mutate(hacinamiento=case_when(#ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
+                                ind_hacin>=0.1 & ind_hacin<3~"Sin Hacinmaniento",
                                 ind_hacin>=3 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
   mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
   
@@ -1097,7 +1098,11 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   cdcper::cdc_cut_integer(variable = nro_convivientes) %>% 
   cdcper::cdc_cut_integer(variable = nro_dormitorios,number_cuts = 3) %>% 
   cdcper::cdc_cut_integer(variable = ind_hacin) %>% 
-  mutate(ind_hacin_cut2=Hmisc::cut2(ind_hacin,g = 4)) %>% 
+  mutate(
+    # ind_hacin2=case_when(ind_hacin==0~NA_real_,
+                         # TRUE~ind_hacin),
+    # ind_hacin_cut2=Hmisc::cut2(ind_hacin2,g = 4)
+    ind_hacin_cut2=Hmisc::cut2(ind_hacin,g = 4)) %>% 
   
   #' [POBREZA MEF]
   
@@ -1564,6 +1569,15 @@ uu_clean_data_pre %>%
         prueba_previa_cat,prueba_previa_res)
 uu_clean_data_pre %>% count(prueba_previa_res)
 uu_clean_data_pre %>% count(prueba_previa_cat)
+
+# eval hacinamiento
+uu_clean_data_pre %>% 
+  count(ind_hacin_cut2,hacinamiento,ind_hacin,
+        # numero_vivienda,numero_hogar,
+        #n_registros_vv,
+        nro_convivientes,nro_dormitorios
+        ) %>% 
+  avallecam::print_inf()
 
 # _ pre step --------------------------------------------------------------
 
