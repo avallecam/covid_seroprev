@@ -55,9 +55,14 @@ conglomerado_nse <-
   janitor::clean_names() %>% 
   rename(conglomerado=cong,
          nse_estrato=estrato) %>% 
-  mutate(nse_estrato=as.factor(nse_estrato))
+  mutate(nse_estrato=as.factor(nse_estrato)) %>% 
+  mutate(nse_estrato_cat=fct_collapse(nse_estrato,
+                                  "1_low"=c("1","2"),
+                                  "3_middle"=c("3"),
+                                  "5_high"=c("5","4")))
 
-conglomerado_nse %>% count(nse_estrato)
+conglomerado_nse %>% 
+  count(nse_estrato,nse_estrato_cat)
 
 
 # _ PONDERACIONES -----------------------------------------------------------

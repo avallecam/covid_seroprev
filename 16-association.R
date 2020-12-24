@@ -88,6 +88,7 @@ covariate_set01 <- uu_clean_data %>% #NEWMOD
          # edad_decenios,
          # edad_quinquenal,
          nse_estrato,
+         nse_estrato_cat,
          diris,
          # pobreza_dico,
          ind_hacin,
@@ -267,7 +268,7 @@ simple_models %>%
 
 # __ define confounder set ---------------
 
-counfunder_set01 <- c("sexo","edad_etapas_de_vida_t","nm_prov","nse_estrato") #NEWMOD
+counfunder_set01 <- c("sexo","edad_etapas_de_vida_t","nm_prov","nse_estrato") #NEWMOD #nse_estrato_cat
 
 glm_adjusted01 <- 
   epi_tidymodel_up(reference_model = glm_null,
@@ -316,7 +317,7 @@ final_table01 %>%
 
 # __ define confounder set ---------------
 
-counfunder_set <- c("sexo","edad_etapas_de_vida_t","diris","nse_estrato") #NEWMOD
+counfunder_set <- c("sexo","edad_etapas_de_vida_t","diris","nse_estrato") #NEWMOD nse_estrato_cat
 
 glm_adjusted <- 
   epi_tidymodel_up(reference_model = glm_null,
