@@ -30,6 +30,11 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
             .funs = as.factor)
 
+# hacin
+uu_clean_data %>% 
+  ggplot(aes(x = ind_hacin)) +
+  geom_histogram()
+
 # nivel hogar
 home_cases <- 
   uu_clean_data %>% #glimpse()

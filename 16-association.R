@@ -87,13 +87,14 @@ covariate_set01 <- uu_clean_data %>% #NEWMOD
          edad_etapas_de_vida_t,
          # edad_decenios,
          # edad_quinquenal,
-         nse_estrato,
+         # nse_estrato,
          nse_estrato_cat,
          diris,
          # pobreza_dico,
          ind_hacin,
          # ind_hacin_qrt,
          ind_hacin_cut2,
+         ind_hacin_cat,
          hacinamiento,
          # nro_dormitorios_cat,
          nm_prov,
@@ -466,7 +467,7 @@ multiple_models %>%
   select(-c(1,3:5)) %>% 
   mutate(across(contains("denominator"),as.character)) %>% 
   
-  filter(magrittr::is_in(denominator,covariate_set01[c(4:7,9:11)])) %>% 
+  # filter(magrittr::is_in(denominator,covariate_set01[c(4:7,9:11)])) %>% 
   
   mutate(clean=str_replace(term,denominator,".")#,
          # clean=str_c(denominator,clean)
@@ -476,4 +477,5 @@ multiple_models %>%
   geom_point() +
   geom_errorbarh(aes(xmax=conf.high,xmin=conf.low),
                 position = position_dodge(width = 0.5)) +
-  facet_grid(denominator~.,scales = "free")
+  facet_grid(denominator~.,scales = "free") +
+  geom_vline(aes(xintercept=1))

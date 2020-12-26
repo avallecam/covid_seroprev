@@ -57,9 +57,9 @@ conglomerado_nse <-
          nse_estrato=estrato) %>% 
   mutate(nse_estrato=as.factor(nse_estrato)) %>% 
   mutate(nse_estrato_cat=fct_collapse(nse_estrato,
-                                  "1_low"=c("1","2"),
+                                  "1_high"=c("1","2"),
                                   "3_middle"=c("3"),
-                                  "5_high"=c("5","4")))
+                                  "5_low"=c("5","4")))
 
 conglomerado_nse %>% 
   count(nse_estrato,nse_estrato_cat)
@@ -1088,10 +1088,15 @@ uu_clean_data_pre <- uu_raw_data %>% #3239
   # mutate(ind_hacin=if_else(condition = ind_hacin==Inf,
   #                          true = NA_real_,
   #                          false = ind_hacin)) %>%
-  mutate(hacinamiento=case_when(#ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
-                                ind_hacin>=0.1 & ind_hacin<3~"Sin Hacinmaniento",
-                                ind_hacin>=3 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
+  mutate(hacinamiento=case_when(
+    #ind_hacin>=0.1 & ind_hacin<=2.4~"Sin Hacinmaniento",
+    ind_hacin>=0 & ind_hacin<3~"Sin Hacinmaniento",
+    ind_hacin>=3 & ind_hacin<=20 ~"Con Hacinamiento")) %>% 
   mutate(hacinamiento=fct_relevel(hacinamiento,"Sin Hacinmaniento")) %>% 
+  mutate(ind_hacin_cat=case_when(
+    ind_hacin>=0 & ind_hacin<2~"0 a < 2",
+    ind_hacin>=2 & ind_hacin<3~"2 a < 3",
+    ind_hacin>=3 & ind_hacin<=20 ~"3 a +")) %>% 
   
   #' [CATEGORIZAR]
   
@@ -1572,7 +1577,7 @@ uu_clean_data_pre %>% count(prueba_previa_cat)
 
 # eval hacinamiento
 uu_clean_data_pre %>% 
-  count(ind_hacin_cut2,hacinamiento,ind_hacin,
+  count(ind_hacin_cut2,hacinamiento,ind_hacin,ind_hacin_cat,
         # numero_vivienda,numero_hogar,
         #n_registros_vv,
         nro_convivientes,nro_dormitorios
