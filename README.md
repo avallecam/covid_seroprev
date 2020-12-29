@@ -15,9 +15,13 @@ seroepidemiological survey”**
 
 ## Project Workflow
 
-For a reproducible workflow of the analysis performed in this project go
-to the [serosurvey](https://avallecam.github.io/serosurvey/) R package
-website.
+For reproducible workflow examples of the analysis performed in this
+project go to the:
+
+  - [serosurvey](https://avallecam.github.io/serosurvey/) website to
+    generate prevalence estimates, and
+  - [epitidy](https://github.com/avallecam/epitidy) repository to
+    calculate association measurements.
 
 ### Files:
 
