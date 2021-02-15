@@ -23,17 +23,11 @@ seroepidemiological survey"__
 
 ## Project Workflow
 
-For reproducible workflow examples of the analysis performed in this project 
-go to the:
-
-- [serosurvey](https://avallecam.github.io/serosurvey/) website to generate prevalence estimates, and
-- [epitidy](https://github.com/avallecam/epitidy) repository to calculate association measurements.
-
 ### Files:
 
 - `Encuesta ESPI_fisico.xlsx`: XLSForm used to collect data.
-- `01-clean`: import, clean and integration of data sources. recategorize and create variables.
-- `06-prevalence`: estimate prevalence.
+- `01-clean.R`: import, clean and integration of data sources. recategorize and create variables.
+- `06-prevalence.R`: estimate prevalence.
 - `07-outputs.R`: create tables and figures.
 - `11-sampling_comparison.R`: contrast census and sample population.
 - `13-epicurve.R`: create epicurve from open data.
@@ -50,6 +44,20 @@ go to the:
 <!-- - unix makefile - correr a cada retorno de resultados PM por parte de INS -->
 <!-- - 02 - exportación de resultados a SISCOVID e INS -->
 <!-- - 05 - script libre para la identificación de problemas a notificar y corregir -->
+
+### Reproducibility:
+
+To reproduce this project from  `06-prevalence.R` onwards, you need the `uu_clean_data.rds` file stored in the `data/` folder. This data source is not available in this repository.
+
+For reproducible workflow examples of the analysis performed in this project 
+go to the:
+
+- [serosurvey](https://avallecam.github.io/serosurvey/) R package website to generate prevalence estimates as in `06-prevalence.R`, and
+- [epitidy](https://github.com/avallecam/epitidy) R package repository to calculate association measurements as in `16-association.R`.
+
+### Required packages:
+
+Call `renv::restore()` to reinstall all of the packages used in this project. Learn more about `renv` [here](https://rstudio.github.io/renv/).
 
 <!-- ## to do list -->
 

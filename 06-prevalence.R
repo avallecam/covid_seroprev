@@ -38,7 +38,19 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
          weight_nul=1) %>% 
   # transformar a factor (prevlaencia ajustada)
   mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
-            .funs = as.factor) #%>% 
+            .funs = as.factor) %>% 
+  mutate(etnia_cat2=fct_collapse(etnia_cat,
+                                 "otros_afro"=c("otros","afro"))) %>% 
+  mutate(across(c(
+              etnia_cat,
+              etnia_cat2,
+              seguro_salud,
+              desague,
+              agua#,
+              #tipo_vivienda
+            ),
+            fct_infreq)) %>%
+  identity()
   # # transformar a numerico (prevalencia cruda)
   # mutate_at(.vars = vars(igg,igm,ig_clasificacion,positividad_peru),
   #           .funs = list("num"=outcome_to_numeric)) %>% 
@@ -193,20 +205,23 @@ uu_clean_data %>%
          # -contains("renal"),
          # -contains("60a"),
          # contacto_covid,
-         # etnia_cat,
+         etnia,
+         etnia_cat,
+         etnia_cat2,
          # trabajo_reciente,
          # atencion,
          seguro_salud,
          convResultado,
          ig_clasificacion
   ) %>%
-  mutate(across(c(#etnia_cat,
-                  seguro_salud,
-                  desague,
-                  agua#,
-                  #tipo_vivienda
-                  ),
-                fct_infreq)) %>% 
+  # mutate(across(c(etnia,
+  #                 etnia_cat,
+  #                 seguro_salud,
+  #                 desague,
+  #                 agua#,
+  #                 #tipo_vivienda
+  #                 ),
+  #               fct_infreq)) %>% 
   # compareGroups::compareGroups(ig_clasificacion~.,
   compareGroups::compareGroups(survey_all~.,
                                # include.miss = T,
@@ -264,8 +279,9 @@ covariate_set01 <- uu_clean_data %>%
          contacto_covid_tipo,
          prueba_previa,
          prueba_previa_cat,
-         prueba_previa_res
-         # etnia_cat,
+         prueba_previa_res,
+         etnia_cat,
+         etnia_cat2,
          # trabajo_reciente,
          # atencion,
          # seguro_salud,
@@ -462,8 +478,13 @@ outcome_01_adj_pre <- outcome_01_pre %>%
 
 # __ only one -------------------------------------------------------------
 
+
+plan(multisession, workers = availableCores())
+tic()
+
 out_one <- outcome_01_adj_pre %>% 
-  filter(denominator=="survey_all") %>% 
+  # filter(denominator=="etnia_cat2") %>%
+  filter(denominator=="survey_all") %>%
   select(1:5,
          starts_with("prop"),
          ends_with("_round"),
@@ -479,6 +500,8 @@ out_one <- outcome_01_adj_pre %>%
     false_negative = false_negative,
     false_positive = false_positive,
     true_negative = true_negative)) 
+
+toc()
 
 # out_one %>% glimpse()
 
@@ -525,6 +548,8 @@ ggsave("figure/33-seroprev-supp-figure02.png",height = 3,width = 10,dpi = "retin
 # 56-60sec por covariable 
 # 4GB RAM
 # paralelizando en 8 nucleos usando purrr y furrr
+# outcome_01_adj_pre <- outcome_01_adj_pre %>% 
+#   filter(denominator=="etnia_cat" & denominator_level!="otros")
 
 plan(multisession, workers = availableCores())
 tic()
@@ -597,7 +622,8 @@ outcome_01_adj <- out  %>%
 
 outcome_01_adj_tbl <- 
   # start from original dataset
-  outcome_01_pre %>% 
+  outcome_01_pre %>%
+  # filter(denominator=="etnia_cat2") %>% 
   # only positives
   filter(numerator_level=="positivo"|denominator_level=="positivo") %>% 
   # left join with db with test performance update
@@ -647,3 +673,39 @@ outcome_01_adj_tbl %>%
 
 
 outcome_01_adj_tbl %>% readr::write_rds("data/outcome_01_adj_tbl.rds")
+
+
+# ethnicity ---------------------------------------------------------------
+
+# start from original dataset
+outcome_01_pre %>%
+  filter(denominator=="etnia_cat") %>%
+  # only positives
+  filter(numerator_level=="positivo"|denominator_level=="positivo") %>% 
+  # left join with db with test performance update
+  left_join(outcome_01_adj) %>% 
+  # naniar::miss_var_summary() %>% 
+  # avallecam::print_inf() %>% 
+  
+  # apply format
+  unite_dotwhiskers(variable_dot = raw_prop, 
+                    variable_low = raw_prop_low,
+                    variable_upp = raw_prop_upp,
+                    digits_dot = 2,
+                    digits_low = 2,
+                    digits_upp = 3) %>% 
+  unite_dotwhiskers(variable_dot = prop, 
+                    variable_low = prop_low,
+                    variable_upp = prop_upp,
+                    digits_dot = 3,
+                    digits_low = 2,
+                    digits_upp = 3) %>% 
+  unite_dotwhiskers(variable_dot = adj_dot_unk_p50,
+                    variable_low = adj_low_unk_p50,
+                    variable_upp = adj_upp_unk_p50,
+                    digits_dot = 3,
+                    digits_low = 2,
+                    digits_upp = 3) %>% 
+  select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
+  filter(numerator=="ig_clasificacion"|numerator=="positividad_peru") %>% 
+  writexl::write_xlsx("table/05-seroprev-table01.xlsx")

@@ -58,7 +58,19 @@ uu_clean_data <- read_rds("data/uu_clean_data.rds") %>%
     is.na(rubro) & trabajo_reciente=="no" ~"no",
     TRUE~rubro
   )) %>% 
-  mutate(rubro=fct_relevel(rubro,"no")) #%>%
+  mutate(rubro=fct_relevel(rubro,"no")) %>%
+  mutate(etnia_cat2=fct_collapse(etnia_cat,
+                                 "otros_afro"=c("otros","afro"))) %>% 
+  mutate(across(c(
+    etnia_cat,
+    etnia_cat2,
+    seguro_salud,
+    desague,
+    agua#,
+    #tipo_vivienda
+  ),
+  fct_infreq)) %>%
+  identity()
 # reordenar contacto_covid, contacto_covid_tipo
 # # extender respuestas por condicicion de riesgo
 # mutate_at(.vars = vars(starts_with("condicion_riesgo_")),
@@ -76,6 +88,12 @@ uu_clean_data %>%
 
 # uu_clean_data %>% skim(ind_hacin)
 # uu_clean_data %>% count(sintomas_cualquier_momento_cat_fecha_14d_v1)
+
+uu_clean_data %>% 
+  janitor::tabyl(nse_estrato_cat,etnia_cat) %>% 
+  avallecam::adorn_ame()
+  # janitor::chisq.test() %>% 
+  # broom::tidy()
 
 # ___________ -------------------------------------------------------------
 
@@ -113,7 +131,8 @@ covariate_set01 <- uu_clean_data %>% #NEWMOD
          prueba_previa,
          prueba_previa_cat,
          prueba_previa_res,
-         # etnia_cat,
+         etnia_cat,
+         etnia_cat2,
          trabajo_reciente,
          rubro,
          # atencion,
@@ -142,13 +161,6 @@ uu_clean_data %>%
 
 uu_clean_data %>% 
   select(ig_clasificacion,all_of(covariate_set01)) %>%
-  # mutate(across(c(#etnia_cat,
-  #   seguro_salud,
-  #   desague,
-  #   agua#,
-  #   #tipo_vivienda
-  # ),
-  # fct_infreq)) %>% 
   compareGroups::compareGroups(ig_clasificacion~.,
                                # compareGroups::compareGroups(survey_all~.,
                                # include.miss = T,

@@ -34,6 +34,7 @@ outcome_01_adj_tbl %>%
 outcome_01_adj_tbl %>% 
   select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
   filter(numerator=="ig_clasificacion") %>% 
+  # writexl::write_xlsx("table/05-seroprev-tablexx.xlsx")
   writexl::write_xlsx("table/01-seroprev-table01.xlsx")
 
 outcome_01_adj_tbl %>% 
@@ -44,6 +45,7 @@ outcome_01_adj_tbl %>%
 outcome_01_adj_tbl %>% 
   select(1:4,starts_with("unite1_"),raw_num,raw_den,prop_cv) %>% 
   filter(numerator=="positividad_peru") %>% 
+  # writexl::write_xlsx("table/05-seroprev-tablexx.xlsx")
   writexl::write_xlsx("table/02-seroprev-supp-table03.xlsx")
 
 outcome_01_adj_tbl %>% 
@@ -62,6 +64,11 @@ figura01 <- outcome_01_adj_tbl %>%
   filter(!magrittr::is_in(denominator,c("diris","edad_decenios","nm_prov"))) %>%
   filter(!magrittr::is_in(denominator,c("sintomas_cualquier_momento_cat_fecha_rangos"))) %>%
   filter(numerator=="ig_clasificacion"|numerator=="positividad_peru") %>% 
+  # filter(denominator!="prueba_previa") %>% 
+  filter(denominator!="prueba_previa_cat") %>% 
+  # filter(denominator!="prueba_previa_res") %>% 
+  filter(denominator!="ind_hacin_cat") %>% 
+  filter(denominator!="nse_estrato_cat") %>% 
   mutate(denominator=as.factor(denominator),
          denominator_level=as.factor(denominator_level)) %>% 
   mutate(denominator=fct_relevel(denominator,"survey_all",
@@ -80,15 +87,15 @@ figura01 <- outcome_01_adj_tbl %>%
                                 "Biological Sex"="sexo",
                                 "Age (years)"="edad_etapas_de_vida_t",
                                 "Overcrowding"="hacinamiento",
-                                "ind_hacin_cat"="ind_hacin_cat",
-                                "ind_hacin_cut2"="ind_hacin_cut2",
+                                # "ind_hacin_cat"="ind_hacin_cat",
+                                "Overcrowding index (quartiles)"="ind_hacin_cut2",
                                 "Socioeconomic Status"="nse_estrato",
-                                "Socioeconomic Status (cat.)"="nse_estrato_cat",
+                                # "Socioeconomic Status (cat.)"="nse_estrato_cat",
                                 "Symptoms"="sintomas_cualquier_momento_cat",
                                 "Contact"="contacto_covid",
                                 "Contact Type"="contacto_covid_tipo",
                                 "Previous Test"="prueba_previa",
-                                "Previous Test (Type)"="prueba_previa_cat",
+                                # "Previous Test (Type)"="prueba_previa_cat",
                                 "Previous Test (Result)"="prueba_previa_res",
                                 "Symptoms (by onset)"="sintomas_cualquier_momento_cat_fecha_14d_v1",
                                 # "Symptoms (by onset)."="sintomas_cualquier_momento_cat_fecha_rangos"
@@ -102,7 +109,8 @@ figura01 <- outcome_01_adj_tbl %>%
                                        "si_contacto_tipo3",
                                        "si_contacto_tipo2",
                                        "si_contacto_tipo45",
-                                       "desconocido"
+                                       "desconocido",
+                                       "Sin Hacinmaniento"
                                        # "sinto_covid"
   )
   ) %>%
@@ -142,9 +150,9 @@ figura01 <- outcome_01_adj_tbl %>%
                                       # ".Middle"="3_middle",
                                       # ".High"="5_high",
                                       "Unknown"="desconocido",
-                                      # "No"="no_",
-                                      "with PCR Test"="si_pcr",
-                                      "with Antibody\nRapid Test"="si_pr",
+                                      "No"="no_",
+                                      # "with PCR Test"="si_pcr",
+                                      # "with Antibody\nRapid Test"="si_pr",
                                       "Negative\nresult"="si_negativo",
                                       "Positive\nresult"="si_positivo",
                                       "Asymptomatic"="sinto_asint",
@@ -162,8 +170,8 @@ figura01 <- outcome_01_adj_tbl %>%
                                       "Other family member" = "si_contacto_tipo2",
                                       "Workmate" = "si_contacto_tipo3",
                                       "Other" = "si_contacto_tipo45",
-                                      "With"="Con Hacinamiento",
-                                      "Without"="Sin Hacinmaniento" #------------#
+                                      "Without"="Sin Hacinmaniento",
+                                      "With"="Con Hacinamiento" #------------#
   )) %>%
   mutate(numerator=fct_recode(numerator,
                               # "IgM+"="igm",
@@ -186,14 +194,14 @@ figura01 %>%
   facet_wrap(denominator~.,scales = "free_y",ncol = 3) +
   # facet_grid(denominator~.,scales = "free_y") +
   colorspace::scale_color_discrete_qualitative() +
-  labs(title = "SARS-CoV-2 Prevalence by case definitions across covariates",
-       subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
+  labs(#title = "SARS-CoV-2 Prevalence by case definitions across covariates",
+       #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        # caption = "* SES: Socioeconomic Status",
        y = "Prevalence",x = "",
        color = "Case\ndefinition"#,size = "CV%"
   ) +
   theme_bw()
-ggsave("figure/00-seroprev-supp-figure01.png",height = 10,width = 12,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01.png",height = 8,width = 12,dpi = "retina")
 
 # __fig01: edad decenio -----------------------------------------------------------------
 
@@ -456,7 +464,7 @@ figure_03_map %>%
   labs(#title = "SARS-CoV-2 Seroprevalence Stratified in Space",
        #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        y = "Latitude",
-       x = "Longitud",
+       x = "Longitude",
        fill = "Prevalence"#,size = "CV%"
   ) +
   

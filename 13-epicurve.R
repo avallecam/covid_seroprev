@@ -61,7 +61,11 @@ interventions <- tibble(
                               max_analysis_date,
                               date_max))
   ) %>% 
-  filter(!is.na(intervention))
+  filter(!is.na(intervention)) %>% 
+  mutate(date_max=case_when(
+    date_max==max(date_max)~max_analysis_date,
+    TRUE~date_max
+  ))
 interventions
 
 interventions %>% 
@@ -323,7 +327,7 @@ ggplot() +
        subtitle = "Offitial Reports between March and October in Lima Metropolitan Area*, Peru 2020",
        caption = "* Province of Lima and Callao", 
        x = "Epidemiological week",
-       y = "Number of events per 100K hab.",
+       y = "Number of events per 100K inhabitants",
        fill = "Interventions",
        color = "Age groups")
 
