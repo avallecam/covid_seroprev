@@ -181,11 +181,20 @@ figura01 <- outcome_01_adj_tbl %>%
   ))
 
 figura01 %>% 
-  ggplot_prevalence(denominator_level = denominator_level,
-                    numerator = numerator,
-                    proportion = prop,
-                    proportion_upp = prop_upp,
-                    proportion_low = prop_low) +
+  # ggplot_prevalence(denominator_level = denominator_level,
+  #                   numerator = numerator,
+  #                   proportion = prop,
+  #                   proportion_upp = prop_upp,
+  #                   proportion_low = prop_low) +
+  ggplot(aes(x = denominator_level, 
+             y = prop, 
+             color = numerator, 
+             group = numerator)) + 
+  geom_point(position = position_dodge(width = 0.5)) + 
+  geom_errorbar(aes(max = prop_upp, 
+                    min = prop_low,
+                    width = 0.5), 
+                position = position_dodge(width = 0.5)) +
   # theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0)) +
   scale_y_continuous(
     labels = scales::percent_format(accuracy = 1),
@@ -197,7 +206,7 @@ figura01 %>%
   labs(#title = "SARS-CoV-2 Prevalence by case definitions across covariates",
        #subtitle = "Lima Metropolitan Area, Peru: June 28th-July 9th, 2020",
        # caption = "* SES: Socioeconomic Status",
-       y = "Prevalence",x = "",
+       y = "Prevalence [95% Confidence Intervals]",x = "",
        color = "Case\ndefinition"#,size = "CV%"
   ) +
   theme_bw()

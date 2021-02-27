@@ -125,7 +125,8 @@ mobility_lima %>%
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   # theme(legend.position="bottom")
   labs(title = "Government interventions and Mobility reports",
-       subtitle = "Lima Metropolitan Area and Callao Region, Peru 2020",
+       subtitle = "Lima*, Peru 2020",
+       caption = "* including Lima and Callao provinces", 
        x = "Date",
        y = "% change from baseline",
        fill = "Interventions",
@@ -324,8 +325,8 @@ ggplot() +
   facet_wrap(~source+key,scales = "free") +
   # scale_y_log10() +
   labs(title = "Government interventions and Surveillance data",
-       subtitle = "Offitial Reports between March and October in Lima Metropolitan Area*, Peru 2020",
-       caption = "* Province of Lima and Callao", 
+       subtitle = "Offitial Reports between March and October in Lima*, Peru 2020",
+       caption = "* including Lima and Callao provinces", 
        x = "Epidemiological week",
        y = "Number of events per 100K inhabitants",
        fill = "Interventions",
