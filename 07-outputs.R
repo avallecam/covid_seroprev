@@ -211,6 +211,9 @@ figura01 %>%
   ) +
   theme_bw()
 ggsave("figure/00-seroprev-supp-figure01.png",height = 8,width = 12,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01-300dpi.tiff",height = 8,width = 12,dpi = "retina")
+ggsave("figure/00-seroprev-supp-figure01-500dpi.tiff",height = 8,width = 12,dpi = 500)
+ggsave("figure/00-seroprev-supp-figure01-1000dpi.tiff",height = 8,width = 12,dpi = 1000)
 
 # __fig01: edad decenio -----------------------------------------------------------------
 
